@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   从 GitHub Releases 安装 NexCtl Agent（Windows），参考 nezhahq/scripts/agent 的体验：
@@ -11,6 +11,9 @@
   .\install.ps1 -Uninstall
 
   环境变量：NEXCTL_AGENT_REPO、CN=1、NEXCTL_NO_MIRROR=1、NEXCTL_GH_PROXY
+
+  远程一键：请把脚本保存到 %TEMP% 或用户目录（例如 -OutFile "$env:TEMP\nexctl-install.ps1"），
+  勿在 C:\ 根目录写入 install.ps1，否则可能「对路径的访问被拒绝」。
 #>
 
 [CmdletBinding(DefaultParameterSetName = 'Install')]
@@ -284,7 +287,8 @@ agent:
     $pathEnv = [Environment]::GetEnvironmentVariable('Path', 'User')
     if ($pathEnv -notlike "*$binDirNorm*") {
       Write-Host '若找不到 nexctl-agent.exe，可将目录加入用户 PATH:'
-      Write-Host "  [Environment]::SetEnvironmentVariable('Path', `"$BinDir;`$env:Path`", 'User')"
+      $pathHint = [string]::Format('  [Environment]::SetEnvironmentVariable({0}Path{0}, "{1};{2}", {0}User{0})', [char]39, $BinDir, '$env:Path')
+      Write-Host $pathHint
     }
   }
 } finally {
