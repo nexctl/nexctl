@@ -27,6 +27,19 @@ Use `NEXT_PUBLIC_API_BASE_URL` to point to the NexCtl server API, for example:
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
 ```
 
+「添加节点」一键部署命令里的 **控制面地址**（Agent `server_url`）按以下优先级解析：
+
+1. `NEXT_PUBLIC_AGENT_SERVER_URL`（例如 `https://console.example.com` 或 `http://10.0.0.1:8080`）
+2. 若 `NEXT_PUBLIC_API_BASE_URL` 为绝对 URL，则取其 `origin`
+3. 本地开发常见 `localhost:3000` 时默认 `http://127.0.0.1:8080`
+4. 否则为当前页面的 `origin`
+
+安装脚本默认从 GitHub `nexctl/nexctl` 的 `master` 拉取；若需指定分支/标签，可设置：
+
+```bash
+NEXT_PUBLIC_NEXCTL_INSTALL_REF=master
+```
+
 ## Default Dev Login
 
 If you use the repository root `docker-compose.yml`, the seeded login is:

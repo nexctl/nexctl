@@ -1,10 +1,15 @@
 'use client';
 
 import { CopyOutlined } from '@ant-design/icons';
-import { App, Button, Form, Input, InputNumber, Modal, Space, Typography } from 'antd';
-import { useState } from 'react';
+import { App, Alert, Button, Divider, Form, Input, InputNumber, Modal, Space, Typography } from 'antd';
+import { useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { createPendingNode } from '@/services/node';
+import {
+  buildLinuxInstallCommand,
+  buildWindowsInstallLines,
+  resolveAgentServerUrl,
+} from '@/utils/agent-install';
 
 type Props = {
   open: boolean;
@@ -22,6 +27,18 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
     expiresAt?: string;
     name: string;
   } | null>(null);
+
+  const serverUrl = useMemo(() => resolveAgentServerUrl(), [tokenResult]);
+
+  const linuxCommand = useMemo(
+    () => (tokenResult ? buildLinuxInstallCommand(serverUrl, tokenResult.token) : ''),
+    [tokenResult, serverUrl],
+  );
+
+  const windowsCommand = useMemo(
+    () => (tokenResult ? buildWindowsInstallLines(serverUrl, tokenResult.token) : ''),
+    [tokenResult, serverUrl],
+  );
 
   const handleClose = () => {
     setTokenResult(null);
@@ -51,6 +68,15 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
     }
   };
 
+  const copyText = async (text: string, okKey: 'nodes.copied' | 'nodes.deployCopiedCmd') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      message.success(t(okKey));
+    } catch {
+      message.warning(t('nodes.copyFailed'));
+    }
+  };
+
   return (
     <Modal
       title={tokenResult ? t('nodes.modalTokenTitle') : t('nodes.modalAddTitle')}
@@ -71,40 +97,80 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
         )
       }
       destroyOnHidden
-      width={560}
+      width={720}
     >
       {tokenResult ? (
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-          <Typography.Text type="secondary">
-            {t('nodes.tokenHint', { name: tokenResult.name })}{' '}
-            <Typography.Text code>OPSPILOT_AGENT_ENROLLMENT_TOKEN</Typography.Text> {t('nodes.tokenHintOr')}{' '}
-            <Typography.Text code>enrollment_token</Typography.Text>。
-          </Typography.Text>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
+            {t('nodes.tokenHint', { name: tokenResult.name })}
+          </Typography.Paragraph>
+          <div>
+            <Typography.Text type="secondary">{t('nodes.deployServerUrlLabel')}: </Typography.Text>
+            <Typography.Text code copyable>
+              {serverUrl}
+            </Typography.Text>
+          </div>
+          <Alert type="info" showIcon message={t('nodes.deployServerHint')} />
+
           {tokenResult.expiresAt && (
             <Typography.Text type="secondary">
               {t('nodes.expiresAt')}
               {tokenResult.expiresAt}
             </Typography.Text>
           )}
-          <Input.TextArea
-            readOnly
-            value={tokenResult.token}
-            autoSize={{ minRows: 3, maxRows: 6 }}
-            style={{ fontFamily: 'monospace' }}
-          />
-          <Button
-            icon={<CopyOutlined />}
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(tokenResult.token);
-                message.success(t('nodes.copied'));
-              } catch {
-                message.warning(t('nodes.copyFailed'));
-              }
-            }}
-          >
-            {t('nodes.copyToken')}
-          </Button>
+
+          <div>
+            <Typography.Text strong>{t('nodes.copyToken')}</Typography.Text>
+            <Input.TextArea
+              readOnly
+              value={tokenResult.token}
+              autoSize={{ minRows: 3, maxRows: 6 }}
+              style={{ fontFamily: 'monospace', marginTop: 8 }}
+            />
+            <Button
+              style={{ marginTop: 8 }}
+              icon={<CopyOutlined />}
+              onClick={() => copyText(tokenResult.token, 'nodes.copied')}
+            >
+              {t('nodes.copyToken')}
+            </Button>
+          </div>
+
+          <Divider>{t('nodes.deploySectionTitle')}</Divider>
+
+          <div>
+            <Typography.Text strong>{t('nodes.deployLinuxLabel')}</Typography.Text>
+            <Input.TextArea
+              readOnly
+              value={linuxCommand}
+              autoSize={{ minRows: 2, maxRows: 5 }}
+              style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 8 }}
+            />
+            <Button
+              style={{ marginTop: 8 }}
+              icon={<CopyOutlined />}
+              onClick={() => copyText(linuxCommand, 'nodes.deployCopiedCmd')}
+            >
+              {t('nodes.deployCopyLinux')}
+            </Button>
+          </div>
+
+          <div>
+            <Typography.Text strong>{t('nodes.deployWindowsLabel')}</Typography.Text>
+            <Input.TextArea
+              readOnly
+              value={windowsCommand}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 8 }}
+            />
+            <Button
+              style={{ marginTop: 8 }}
+              icon={<CopyOutlined />}
+              onClick={() => copyText(windowsCommand, 'nodes.deployCopiedCmd')}
+            >
+              {t('nodes.deployCopyWindows')}
+            </Button>
+          </div>
         </Space>
       ) : (
         <Form form={form} layout="vertical" initialValues={{ expires_in_hours: 168 }}>

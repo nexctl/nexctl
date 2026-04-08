@@ -48,7 +48,7 @@
     },
     "nodes": {
       "title": "Nodes",
-      "description": "Add a node in the console and copy the enrollment token, then deploy the Agent on the target host (OPSPILOT_AGENT_ENROLLMENT_TOKEN)."
+      "description": "Add a node and run the one-line deploy command on the host to install and enroll the Agent."
     },
     "audit": {
       "title": "Audit logs",
@@ -79,8 +79,15 @@
     "createToken": "Create and generate token",
     "createSuccess": "Node created. Copy the token below into your Agent environment.",
     "createFailed": "Failed to create",
-    "tokenHint": "Node \"{{name}}\" created. On the target host, set env",
-    "tokenHintOr": "or set in config",
+    "tokenHint": "Node \"{{name}}\" created. Copy the deploy command below, or set enrollment_token in the agent config.",
+    "deploySectionTitle": "Deploy",
+    "deployServerUrlLabel": "Control plane URL (agent server_url)",
+    "deployServerHint": "This URL is what the Agent uses to reach the API. If it is wrong, edit the command after copying, or set NEXT_PUBLIC_AGENT_SERVER_URL when building the console.",
+    "deployLinuxLabel": "Linux / macOS / FreeBSD (curl)",
+    "deployWindowsLabel": "Windows (PowerShell)",
+    "deployCopyLinux": "Copy command",
+    "deployCopyWindows": "Copy both lines",
+    "deployCopiedCmd": "Command copied",
     "expiresAt": "Expires: ",
     "copyToken": "Copy token",
     "copied": "Copied to clipboard",
