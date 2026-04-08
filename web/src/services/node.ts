@@ -33,3 +33,13 @@ export async function createPendingNode(body: { name: string; expires_in_hours?:
 export function issueNodeEnrollmentToken(id: number | string) {
   return apiRequest<CreatePendingNodeResult>(`/nodes/${id}/enrollment-token`, { method: 'POST' });
 }
+
+export type TriggerAgentUpgradeResult = {
+  queued: boolean;
+  request_id: string;
+};
+
+/** 向在线 Agent 下发升级检查指令（GitHub 有新版本则自更新并重启） */
+export function triggerAgentUpgrade(id: number | string) {
+  return apiRequest<TriggerAgentUpgradeResult>(`/nodes/${id}/upgrade-agent`, { method: 'POST' });
+}

@@ -26,7 +26,7 @@ import (
 // New creates the HTTP router.
 func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeService *node.Service, runtimeService *runtime.Service, taskService *task.Service, fileService *filemgr.Service, upgradeService *upgrade.Service, alertService *alert.Service, auditService *audit.Service, wsService *ws.Service, db *sql.DB, rdb *redis.Client) http.Handler {
 	authHandler := handler.NewAuthHandler(authService)
-	nodeHandler := handler.NewNodeHandler(nodeService, runtimeService)
+	nodeHandler := handler.NewNodeHandler(nodeService, runtimeService, wsService)
 	healthHandler := handler.NewHealthHandler(db, rdb)
 	moduleHandler := handler.NewModuleHandler(taskService, fileService, upgradeService, alertService, auditService)
 	wsHandler := handler.NewWSHandler(nodeService, wsService, logger, cfg.App.WebSocketAllowedOrigins)
@@ -63,6 +63,7 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/{nodeID}", nodeHandler.Detail)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/", nodeHandler.CreatePending)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/enrollment-token", nodeHandler.RegenerateEnrollmentToken)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/upgrade-agent", nodeHandler.TriggerAgentUpgrade)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/runtime-state", nodeHandler.UpdateRuntimeState)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Delete("/{nodeID}", nodeHandler.Delete)
 			})

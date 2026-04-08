@@ -28,7 +28,6 @@ const (
 	MessageTypeTaskDispatch = "task_dispatch"
 	// MessageTypeFileDispatch is reserved for future file operations.
 	MessageTypeFileDispatch = "file_dispatch"
-	// MessageTypeUpgradeCommand is reserved for future upgrade commands.
 	MessageTypeUpgradeCommand = "upgrade_command"
 
 	// 终端（浏览器 <-> 控制面 <-> Agent PTY）
@@ -81,6 +80,11 @@ type TerminalExitPayload struct {
 // TerminalErrorPayload 控制面 -> 浏览器：错误说明。
 type TerminalErrorPayload struct {
 	Message string `json:"message"`
+}
+
+// UpgradeCommandPayload 控制面 -> Agent：触发一次 GitHub Release 自更新检查。
+type UpgradeCommandPayload struct {
+	Source string `json:"source,omitempty"` // 例如 console
 }
 
 // Message is the base websocket envelope.

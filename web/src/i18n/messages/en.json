@@ -152,6 +152,8 @@
     "toolbarTerminal": "Open terminal",
     "toolbarFile": "Distribute file",
     "toolbarUpgrade": "Upgrade agent",
+    "toolbarUpgradeQueued": "Upgrade check sent to the agent. If a newer release exists on GitHub, it will update and restart.",
+    "toolbarUpgradeFailed": "Failed to trigger upgrade",
     "featureComingSoon": "This feature is not wired to the control plane and agent yet.",
     "terminalModalTitle": "Web terminal — {{name}}",
     "terminalNeedLogin": "Please sign in to open the terminal.",

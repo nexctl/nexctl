@@ -17,6 +17,7 @@ import { NodeInstallModal } from '@/components/nodes/node-install-modal';
 import { NodeTerminalModal } from '@/components/nodes/node-terminal-modal';
 import { deleteNode } from '@/services/node';
 import type { NodeItem } from '@/types/node';
+import { formatDateTimeLocal } from '@/utils/datetime';
 
 function formatStatus(value: string, t: ReturnType<typeof useT>) {
   const k = `nodes.status.${value}`;
@@ -88,7 +89,13 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
         width: 90,
         render: (_, row) => `${(row.runtime_state?.disk_percent ?? 0).toFixed(1)}%`,
       },
-      { title: t('nodes.tableHeartbeat'), dataIndex: 'last_heartbeat_at', key: 'last_heartbeat_at', width: 180 },
+      {
+        title: t('nodes.tableHeartbeat'),
+        dataIndex: 'last_heartbeat_at',
+        key: 'last_heartbeat_at',
+        width: 200,
+        render: (value: string) => formatDateTimeLocal(value),
+      },
       {
         title: t('nodes.tableTags'),
         key: 'labels',

@@ -152,6 +152,8 @@
     "toolbarTerminal": "打开终端",
     "toolbarFile": "分发文件",
     "toolbarUpgrade": "升级 Agent",
+    "toolbarUpgradeQueued": "已向 Agent 下发升级检查；若 GitHub 有新版本将自动更新并重启进程。",
+    "toolbarUpgradeFailed": "下发升级失败",
     "featureComingSoon": "该功能尚未接入控制面与 Agent，敬请期待。",
     "terminalModalTitle": "Web 终端 — {{name}}",
     "terminalNeedLogin": "请先登录后再打开终端。",
