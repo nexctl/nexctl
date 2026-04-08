@@ -109,13 +109,25 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
             <Button size="small" icon={<CloudDownloadOutlined />} onClick={() => setInstallNode(row)}>
               {t('nodes.install')}
             </Button>
-            <Button size="small" icon={<CodeOutlined />}>
+            <Button
+              size="small"
+              icon={<CodeOutlined />}
+              onClick={() => message.info(t('nodes.featureComingSoon'))}
+            >
               {t('nodes.cmd')}
             </Button>
-            <Button size="small" icon={<SendOutlined />}>
+            <Button
+              size="small"
+              icon={<SendOutlined />}
+              onClick={() => message.info(t('nodes.featureComingSoon'))}
+            >
               {t('nodes.terminal')}
             </Button>
-            <Button size="small" icon={<FileSyncOutlined />}>
+            <Button
+              size="small"
+              icon={<FileSyncOutlined />}
+              onClick={() => message.info(t('nodes.featureComingSoon'))}
+            >
               {t('nodes.file')}
             </Button>
             <Button

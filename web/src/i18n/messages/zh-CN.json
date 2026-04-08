@@ -150,7 +150,8 @@
     "toolbarCmd": "执行命令",
     "toolbarTerminal": "打开终端",
     "toolbarFile": "分发文件",
-    "toolbarUpgrade": "升级 Agent"
+    "toolbarUpgrade": "升级 Agent",
+    "featureComingSoon": "该功能尚未接入控制面与 Agent，敬请期待。"
   },
   "tasks": {
     "headerTitle": "任务中心",

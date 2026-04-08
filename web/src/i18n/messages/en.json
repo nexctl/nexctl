@@ -150,7 +150,8 @@
     "toolbarCmd": "Run command",
     "toolbarTerminal": "Open terminal",
     "toolbarFile": "Distribute file",
-    "toolbarUpgrade": "Upgrade agent"
+    "toolbarUpgrade": "Upgrade agent",
+    "featureComingSoon": "This feature is not wired to the control plane and agent yet."
   },
   "tasks": {
     "headerTitle": "Tasks",
