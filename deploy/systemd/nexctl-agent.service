@@ -1,0 +1,14 @@
+[Unit]
+Description=NexCtl Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/nexctl/agent/nexctl-agent -config /opt/nexctl/agent/agent.yaml
+WorkingDirectory=/opt/nexctl/agent
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

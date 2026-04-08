@@ -1,0 +1,223 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "OK",
+    "delete": "Delete",
+    "detail": "Details",
+    "retry": "Retry",
+    "backHome": "Back to home",
+    "query": "Search",
+    "reset": "Reset",
+    "copy": "Copy",
+    "close": "Close",
+    "language": "Language"
+  },
+  "login": {
+    "subtitle": "Lightweight server fleet monitoring and operations console",
+    "username": "Username",
+    "password": "Password",
+    "usernameRequired": "Please enter username",
+    "passwordRequired": "Please enter password",
+    "submit": "Sign in",
+    "success": "Signed in successfully",
+    "failed": "Sign-in failed"
+  },
+  "console": {
+    "brandSubtitle": "Operations console",
+    "currentUser": "Signed in as: ",
+    "notLoggedIn": "Not signed in",
+    "logout": "Sign out",
+    "menu": {
+      "dashboard": "Dashboard",
+      "nodes": "Nodes",
+      "tasks": "Tasks",
+      "files": "Files",
+      "upgrades": "Upgrades",
+      "alerts": "Alerts",
+      "auditLogs": "Audit logs"
+    }
+  },
+  "locale": {
+    "zhCN": "简体中文",
+    "en": "English"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "description": "Overview of node health, resource usage, and ops entry points."
+    },
+    "nodes": {
+      "title": "Nodes",
+      "description": "Add a node in the console and copy the enrollment token, then deploy the Agent on the target host (OPSPILOT_AGENT_ENROLLMENT_TOKEN)."
+    },
+    "audit": {
+      "title": "Audit logs",
+      "description": "Filter key actions by user, action, and time."
+    },
+    "alerts": {
+      "headerTitle": "Alerts",
+      "headerDescription": "Manage alert rules and browse events.",
+      "rulesTitle": "Rules",
+      "eventsTitle": "Events"
+    }
+  },
+  "dashboard": {
+    "totalNodes": "Total nodes",
+    "onlineNodes": "Online",
+    "unstableNodes": "Unstable",
+    "offlineNodes": "Offline",
+    "resourceOverview": "Resource overview",
+    "recentNodeStatus": "Recent node status",
+    "colNode": "Node",
+    "colCpu": "CPU",
+    "colMemory": "Memory"
+  },
+  "nodes": {
+    "addNode": "Add node",
+    "modalAddTitle": "Add node",
+    "modalTokenTitle": "Enrollment token (shown once)",
+    "createToken": "Create and generate token",
+    "createSuccess": "Node created. Copy the token below into your Agent environment.",
+    "createFailed": "Failed to create",
+    "tokenHint": "Node \"{{name}}\" created. On the target host, set env",
+    "tokenHintOr": "or set in config",
+    "expiresAt": "Expires: ",
+    "copyToken": "Copy token",
+    "copied": "Copied to clipboard",
+    "copyFailed": "Copy failed; select and copy manually",
+    "fieldName": "Node name",
+    "nameRequired": "Enter node name",
+    "namePlaceholder": "e.g. prod-worker-04",
+    "fieldExpiresHours": "Token TTL (hours)",
+    "expiresTooltip": "0 uses system default (7 days). Token is consumed after first successful enrollment.",
+    "hoursRequired": "Enter hours",
+    "expiresPlaceholder": "Default 168 (7 days)",
+    "tableName": "Name",
+    "tableStatus": "Status",
+    "tableOsArch": "OS / Arch",
+    "tableAgentVer": "Agent",
+    "tableMem": "Memory",
+    "tableDisk": "Disk",
+    "tableHeartbeat": "Last heartbeat",
+    "tableTags": "Tags",
+    "tableActions": "Actions",
+    "cmd": "Command",
+    "terminal": "Terminal",
+    "file": "Files",
+    "detail": "Details",
+    "deleteNode": "Delete node",
+    "deleteConfirm": "Delete \"{{name}}\"? The agent must re-enroll to be managed again.",
+    "deleteDetailConfirm": "Delete \"{{name}}\"? You will return to the node list.",
+    "deleted": "Deleted node \"{{name}}\"",
+    "deleteFailed": "Delete failed",
+    "status": {
+      "online": "Online",
+      "offline": "Offline",
+      "unstable": "Unstable",
+      "pending": "Pending"
+    },
+    "detailTitle": "Node details",
+    "summaryBasic": "Overview",
+    "summaryState": "Current state",
+    "summaryCpuMemTrend": "CPU / memory trend",
+    "summaryServices": "Services",
+    "summaryTasks": "Recent tasks",
+    "summaryAlerts": "Recent alerts",
+    "labelName": "Name",
+    "labelStatus": "Status",
+    "labelPlatform": "Platform",
+    "labelArch": "Architecture",
+    "labelAgentVer": "Agent version",
+    "colServiceName": "Service",
+    "colStartup": "Startup",
+    "colTask": "Task",
+    "colTime": "Time",
+    "colLevel": "Level",
+    "colSummary": "Summary",
+    "toolbarCmd": "Run command",
+    "toolbarTerminal": "Open terminal",
+    "toolbarFile": "Distribute file",
+    "toolbarUpgrade": "Upgrade agent"
+  },
+  "tasks": {
+    "headerTitle": "Tasks",
+    "headerDesc": "Task execution status and progress.",
+    "newTask": "New task",
+    "colId": "Task ID",
+    "colType": "Type",
+    "colScope": "Scope",
+    "colOperator": "Operator",
+    "colStatus": "Status",
+    "colProgress": "Progress",
+    "colCreated": "Created",
+    "colAction": "Actions",
+    "detailTitle": "Task #{{id}}",
+    "detailType": "Type: ",
+    "detailStatus": "Status: ",
+    "detailBody": "Detail: ",
+    "filterStatus": "Status",
+    "filterAllStatus": "All statuses",
+    "filterKeyword": "Type / operator"
+  },
+  "files": {
+    "headerTitle": "Files",
+    "headerDesc": "Uploaded files and distribution history.",
+    "upload": "Upload",
+    "distribution": "Distributions",
+    "colName": "File",
+    "colSize": "Size",
+    "colCreated": "Created",
+    "colDistCount": "Distributions",
+    "colAction": "Actions",
+    "distLog": "History",
+    "download": "Download"
+  },
+  "upgrades": {
+    "headerTitle": "Upgrades",
+    "headerDesc": "Agent releases and canary rollouts.",
+    "release": "Publish release",
+    "canary": "Canary",
+    "colVersion": "Version",
+    "colChannel": "Channel",
+    "colNotes": "Notes",
+    "colPublishStatus": "Status",
+    "colCreated": "Created",
+    "colAction": "Actions",
+    "canaryDeploy": "Canary deploy",
+    "viewNodes": "View nodes"
+  },
+  "alerts": {
+    "colRuleName": "Rule",
+    "colType": "Type",
+    "colTarget": "Target",
+    "colEnabled": "Enabled",
+    "colActions": "Actions",
+    "colLevel": "Level",
+    "colNode": "Node",
+    "colSummary": "Summary",
+    "colStatus": "Status",
+    "colTime": "Time"
+  },
+  "audit": {
+    "colUser": "User",
+    "colAction": "Action",
+    "colResource": "Resource",
+    "colDetail": "Detail",
+    "colTime": "Time",
+    "filterUser": "Filter by user",
+    "filterAction": "Filter by action"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "subtitle": "An unexpected error occurred. Retry or go back home.",
+    "globalTitle": "NexCtl console error",
+    "globalSubtitle": "Root layout failed to load"
+  },
+  "notFound": {
+    "message": "Page not found"
+  },
+  "metadata": {
+    "title": "NexCtl Console",
+    "description": "Node and operations management UI"
+  }
+}

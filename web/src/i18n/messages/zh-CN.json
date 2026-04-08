@@ -1,0 +1,223 @@
+{
+  "common": {
+    "cancel": "取消",
+    "confirm": "确定",
+    "delete": "删除",
+    "detail": "详情",
+    "retry": "重试",
+    "backHome": "返回首页",
+    "query": "查询",
+    "reset": "重置",
+    "copy": "复制",
+    "close": "关闭",
+    "language": "语言"
+  },
+  "login": {
+    "subtitle": "轻量服务器集群监控与管理后台",
+    "username": "用户名",
+    "password": "密码",
+    "usernameRequired": "请输入用户名",
+    "passwordRequired": "请输入密码",
+    "submit": "登录控制台",
+    "success": "登录成功",
+    "failed": "登录失败"
+  },
+  "console": {
+    "brandSubtitle": "运维控制台",
+    "currentUser": "当前登录用户：",
+    "notLoggedIn": "未登录",
+    "logout": "退出登录",
+    "menu": {
+      "dashboard": "仪表盘",
+      "nodes": "节点",
+      "tasks": "任务中心",
+      "files": "文件中心",
+      "upgrades": "升级中心",
+      "alerts": "告警中心",
+      "auditLogs": "审计日志"
+    }
+  },
+  "locale": {
+    "zhCN": "简体中文",
+    "en": "English"
+  },
+  "pages": {
+    "dashboard": {
+      "title": "仪表盘",
+      "description": "聚合展示节点在线态、当前资源负载和运维入口。"
+    },
+    "nodes": {
+      "title": "节点列表",
+      "description": "先在控制台添加节点并复制注册令牌，再在目标机器部署 Agent（OPSPILOT_AGENT_ENROLLMENT_TOKEN）。"
+    },
+    "audit": {
+      "title": "审计日志",
+      "description": "按用户、动作和时间筛选关键操作。"
+    },
+    "alerts": {
+      "headerTitle": "告警中心",
+      "headerDescription": "维护告警规则并查看事件流。",
+      "rulesTitle": "规则列表",
+      "eventsTitle": "事件列表"
+    }
+  },
+  "dashboard": {
+    "totalNodes": "节点总数",
+    "onlineNodes": "在线节点",
+    "unstableNodes": "不稳定节点",
+    "offlineNodes": "离线节点",
+    "resourceOverview": "资源概览",
+    "recentNodeStatus": "最近节点状态",
+    "colNode": "节点",
+    "colCpu": "CPU",
+    "colMemory": "内存"
+  },
+  "nodes": {
+    "addNode": "添加节点",
+    "modalAddTitle": "添加节点",
+    "modalTokenTitle": "注册令牌（仅显示一次）",
+    "createToken": "创建并生成令牌",
+    "createSuccess": "节点已创建，请复制下方令牌到 Agent 部署环境",
+    "createFailed": "创建失败",
+    "tokenHint": "节点「{{name}}」已创建。在目标机器部署 Agent 时，设置环境变量",
+    "tokenHintOr": "或在配置文件中填写",
+    "expiresAt": "过期时间：",
+    "copyToken": "复制令牌",
+    "copied": "已复制到剪贴板",
+    "copyFailed": "复制失败，请手动选择复制",
+    "fieldName": "节点名称",
+    "nameRequired": "请输入节点名称",
+    "namePlaceholder": "例如 prod-worker-04",
+    "fieldExpiresHours": "令牌有效时长（小时）",
+    "expiresTooltip": "0 表示使用系统默认（7 天）。Agent 首次注册成功后令牌即失效。",
+    "hoursRequired": "请输入小时数",
+    "expiresPlaceholder": "默认 168（7 天）",
+    "tableName": "节点名称",
+    "tableStatus": "在线状态",
+    "tableOsArch": "OS/架构",
+    "tableAgentVer": "Agent 版本",
+    "tableMem": "内存",
+    "tableDisk": "磁盘",
+    "tableHeartbeat": "最后心跳",
+    "tableTags": "标签",
+    "tableActions": "快捷操作",
+    "cmd": "命令",
+    "terminal": "终端",
+    "file": "文件",
+    "detail": "详情",
+    "deleteNode": "删除节点",
+    "deleteConfirm": "确定删除「{{name}}」？删除后需重新注册 Agent 才能再次纳管。",
+    "deleteDetailConfirm": "确定删除「{{name}}」？删除后将返回节点列表。",
+    "deleted": "已删除节点「{{name}}」",
+    "deleteFailed": "删除失败",
+    "status": {
+      "online": "在线",
+      "offline": "离线",
+      "unstable": "不稳定",
+      "pending": "待注册"
+    },
+    "detailTitle": "节点详情",
+    "summaryBasic": "基本信息",
+    "summaryState": "当前状态",
+    "summaryCpuMemTrend": "短期 CPU/内存趋势",
+    "summaryServices": "服务列表",
+    "summaryTasks": "最近任务记录",
+    "summaryAlerts": "最近告警记录",
+    "labelName": "节点名称",
+    "labelStatus": "状态",
+    "labelPlatform": "平台",
+    "labelArch": "架构",
+    "labelAgentVer": "Agent 版本",
+    "colServiceName": "服务名",
+    "colStartup": "启动方式",
+    "colTask": "任务",
+    "colTime": "时间",
+    "colLevel": "级别",
+    "colSummary": "摘要",
+    "toolbarCmd": "执行命令",
+    "toolbarTerminal": "打开终端",
+    "toolbarFile": "分发文件",
+    "toolbarUpgrade": "升级 Agent"
+  },
+  "tasks": {
+    "headerTitle": "任务中心",
+    "headerDesc": "查看任务执行状态和进度。",
+    "newTask": "新建任务",
+    "colId": "任务 ID",
+    "colType": "类型",
+    "colScope": "范围",
+    "colOperator": "执行人",
+    "colStatus": "状态",
+    "colProgress": "进度",
+    "colCreated": "创建时间",
+    "colAction": "操作",
+    "detailTitle": "任务详情 #{{id}}",
+    "detailType": "类型：",
+    "detailStatus": "状态：",
+    "detailBody": "详情：",
+    "filterStatus": "状态筛选",
+    "filterAllStatus": "全部状态",
+    "filterKeyword": "任务类型 / 操作人"
+  },
+  "files": {
+    "headerTitle": "文件中心",
+    "headerDesc": "管理上传文件与分发记录。",
+    "upload": "上传文件",
+    "distribution": "分发记录",
+    "colName": "文件名",
+    "colSize": "大小",
+    "colCreated": "创建时间",
+    "colDistCount": "分发次数",
+    "colAction": "操作",
+    "distLog": "下发记录",
+    "download": "下载"
+  },
+  "upgrades": {
+    "headerTitle": "升级中心",
+    "headerDesc": "管理 agent release 与灰度发布。",
+    "release": "发布新版本",
+    "canary": "灰度部署",
+    "colVersion": "版本",
+    "colChannel": "通道",
+    "colNotes": "说明",
+    "colPublishStatus": "发布状态",
+    "colCreated": "创建时间",
+    "colAction": "操作",
+    "canaryDeploy": "灰度部署",
+    "viewNodes": "查看节点"
+  },
+  "alerts": {
+    "colRuleName": "规则名称",
+    "colType": "类型",
+    "colTarget": "目标",
+    "colEnabled": "启用",
+    "colActions": "操作",
+    "colLevel": "级别",
+    "colNode": "节点",
+    "colSummary": "摘要",
+    "colStatus": "状态",
+    "colTime": "时间"
+  },
+  "audit": {
+    "colUser": "用户",
+    "colAction": "动作",
+    "colResource": "资源",
+    "colDetail": "详情",
+    "colTime": "时间",
+    "filterUser": "按用户筛选",
+    "filterAction": "按动作筛选"
+  },
+  "error": {
+    "title": "页面出错了",
+    "subtitle": "发生意外错误，请重试或返回上一页。",
+    "globalTitle": "NexCtl 控制台异常",
+    "globalSubtitle": "根布局加载失败"
+  },
+  "notFound": {
+    "message": "页面不存在"
+  },
+  "metadata": {
+    "title": "NexCtl 控制台",
+    "description": "节点与运维管理界面"
+  }
+}

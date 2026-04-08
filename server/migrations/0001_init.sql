@@ -1,0 +1,89 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(64) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    display_name VARCHAR(128) NOT NULL DEFAULT '',
+    status VARCHAR(32) NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    code VARCHAR(64) NOT NULL UNIQUE,
+    name VARCHAR(128) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_roles (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_roles_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS nodes (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    agent_id VARCHAR(64) NOT NULL UNIQUE,
+    agent_secret VARCHAR(128) NOT NULL,
+    node_key VARCHAR(128) NOT NULL,
+    name VARCHAR(128) NOT NULL,
+    hostname VARCHAR(128) NOT NULL,
+    platform VARCHAR(32) NOT NULL,
+    platform_version VARCHAR(128) NOT NULL DEFAULT '',
+    arch VARCHAR(32) NOT NULL,
+    agent_version VARCHAR(64) NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    last_heartbeat_at DATETIME NOT NULL,
+    last_online_at DATETIME NOT NULL,
+    enrollment_token_hash VARCHAR(128) NULL DEFAULT NULL,
+    enrollment_expires_at DATETIME NULL DEFAULT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_nodes_status (status),
+    INDEX idx_nodes_updated (updated_at),
+    UNIQUE INDEX idx_nodes_enrollment_token_hash (enrollment_token_hash)
+);
+
+CREATE TABLE IF NOT EXISTS install_tokens (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    token VARCHAR(128) NOT NULL UNIQUE,
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    max_uses INT NOT NULL DEFAULT 0,
+    used_count INT NOT NULL DEFAULT 0,
+    expires_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    actor_type VARCHAR(32) NOT NULL,
+    actor_id VARCHAR(128) NOT NULL,
+    actor_name VARCHAR(128) NOT NULL DEFAULT '',
+    action VARCHAR(128) NOT NULL,
+    resource_type VARCHAR(64) NOT NULL,
+    resource_id VARCHAR(128) NOT NULL DEFAULT '',
+    detail JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS node_runtime_states (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    node_id BIGINT NOT NULL UNIQUE,
+    cpu_percent DOUBLE NOT NULL DEFAULT 0,
+    memory_percent DOUBLE NOT NULL DEFAULT 0,
+    disk_percent DOUBLE NOT NULL DEFAULT 0,
+    network_rx_bps BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    network_tx_bps BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    load_1 DOUBLE NOT NULL DEFAULT 0,
+    load_5 DOUBLE NOT NULL DEFAULT 0,
+    load_15 DOUBLE NOT NULL DEFAULT 0,
+    uptime_seconds BIGINT UNSIGNED NOT NULL DEFAULT 0,
+    process_count INT UNSIGNED NOT NULL DEFAULT 0,
+    reported_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_runtime_node FOREIGN KEY (node_id) REFERENCES nodes (id) ON DELETE CASCADE
+);

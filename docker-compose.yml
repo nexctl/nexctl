@@ -1,0 +1,83 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: nexctl-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: opspilot
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql-data2:/var/lib/mysql
+      - ./server/migrations/0001_init.sql:/docker-entrypoint-initdb.d/0001_init.sql:ro
+      - ./deploy/mysql/001-seed.sql:/docker-entrypoint-initdb.d/001-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:alpine
+    container_name: nexctl-redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-opspilot-dev}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile.dev
+    container_name: nexctl-server
+    working_dir: /app
+    volumes:
+      - ./server:/app
+    command: go run ./cmd/server -config configs/config.example.yaml
+    environment:
+      OPSPILOT_SERVER_EXTERNAL_URL: http://localhost:8080
+      OPSPILOT_MYSQL_DSN: root:${MYSQL_ROOT_PASSWORD:-password}@tcp(mysql:3306)/opspilot?charset=utf8mb4&parseTime=true&loc=Local
+      OPSPILOT_REDIS_ADDR: redis:6379
+      OPSPILOT_REDIS_PASSWORD: ${REDIS_PASSWORD:-opspilot-dev}
+      OPSPILOT_JWT_SECRET: ${OPSPILOT_JWT_SECRET:-change-me}
+      OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS: ${OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8315:8080"
+
+  # web:
+  #   build:
+  #     context: ./web
+  #     dockerfile: Dockerfile.dev
+  #   container_name: nexctl-web
+  #   working_dir: /app
+  #   volumes:
+  #     - ./web:/app
+  #     - /app/node_modules
+  #   command: sh -c "corepack enable && pnpm clean && pnpm install && pnpm run dev:docker"
+  #   environment:
+  #     CI: "true"
+  #     INTERNAL_API_BASE_URL: http://server:8080
+  #   depends_on:
+  #     - server
+  #   ports:
+  #     # 绑定 IPv4，避免 Windows 上 localhost→IPv6 导致 ERR_EMPTY_RESPONSE
+  #     - "127.0.0.1:3000:3000"
+
+volumes:
+  mysql-data2:
+  redis-data:
