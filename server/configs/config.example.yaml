@@ -2,6 +2,7 @@ app:
   name: nexctl-server
   env: development
   listen_addr: ":8080"
+  # 控制面对外根 URL（注册返回的 ws_url 等依赖此项）。可用环境变量 OPSPILOT_SERVER_EXTERNAL_URL 覆盖（非空时优先生效）。
   external_url: "http://localhost:8080"
   shutdown_timeout_seconds: 10
   # 浏览器 WebSocket 调试等场景的 Origin；留空时仅允许无 Origin 的客户端（如 agent）。逗号分隔可用环境变量 OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS 覆盖。

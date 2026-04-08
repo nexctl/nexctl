@@ -13,19 +13,39 @@ export function getInstallScriptBaseUrl(): string {
   return `https://raw.githubusercontent.com/nexctl/nexctl/${ref}/deploy/install`;
 }
 
+function stripTrailingSlash(s: string): string {
+  return s.replace(/\/$/, '');
+}
+
 /**
  * Agent 注册使用的控制面 HTTP 根地址（无 /api/v1 后缀），与 agent.yaml 的 server_url 一致。
- * 优先 NEXT_PUBLIC_AGENT_SERVER_URL；否则从 NEXT_PUBLIC_API_BASE_URL 推导；
- * 本地 dev 常见为控制台 :3000 + API 反代，则默认回退到 http://127.0.0.1:8080。
+ *
+ * 优先级：
+ * 1. NEXT_PUBLIC_AGENT_SERVER_URL（构建/运行时在 .env 中配置）
+ * 2. 浏览器：常见「控制台 :3000、API :8080 同主机」→ 用当前 hostname + 8080（局域网访问控制台时避免错用 3000）
+ * 3. NEXT_PUBLIC_INTERNAL_API_ORIGIN（next.config 由 INTERNAL_API_BASE_URL 注入，与 rewrites 同源）
+ * 4. NEXT_PUBLIC_API_BASE_URL 为绝对 URL 时取其 origin
+ * 5. localhost:3000 → http://127.0.0.1:8080
+ * 6. window.location.origin
  */
 export function resolveAgentServerUrl(): string {
-  if (typeof window === 'undefined') {
-    return 'http://127.0.0.1:8080';
-  }
   const explicit = process.env.NEXT_PUBLIC_AGENT_SERVER_URL?.trim();
   if (explicit) {
-    return explicit.replace(/\/$/, '');
+    return stripTrailingSlash(explicit);
   }
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    if (port === '3000' && hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return stripTrailingSlash(`${protocol}//${hostname}:8080`);
+    }
+  }
+
+  const fromInternal = process.env.NEXT_PUBLIC_INTERNAL_API_ORIGIN?.trim();
+  if (fromInternal) {
+    return stripTrailingSlash(fromInternal);
+  }
+
   const api = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1';
   if (api.startsWith('http://') || api.startsWith('https://')) {
     try {
@@ -35,14 +55,19 @@ export function resolveAgentServerUrl(): string {
       /* fall through */
     }
   }
-  const { protocol, hostname, port } = window.location;
-  if (
-    (hostname === 'localhost' || hostname === '127.0.0.1') &&
-    (port === '3000' || port === '')
-  ) {
-    return 'http://127.0.0.1:8080';
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    if (
+      (hostname === 'localhost' || hostname === '127.0.0.1') &&
+      (port === '3000' || port === '')
+    ) {
+      return 'http://127.0.0.1:8080';
+    }
+    return window.location.origin;
   }
-  return window.location.origin;
+
+  return 'http://127.0.0.1:8080';
 }
 
 /** Bash 单引号字符串转义 */

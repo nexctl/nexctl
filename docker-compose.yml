@@ -1,3 +1,7 @@
+# 环境变量说明（与仓库根目录 `.env`）：
+# 1) Compose 会自动读取「与本文件同目录」的 `.env`，用于解析下方 ${VAR} / ${VAR:-default}（宿主机插值）。
+# 2) `environment` 中解析后的键值会传入容器；未在 `environment` 里声明的变量不会自动进容器。
+# 3) `env_file`（可选）会把 `.env` 整份注入容器，与显式 `environment` 重复时以后者为准。
 version: "3.9"
 
 services:
@@ -23,7 +27,7 @@ services:
     image: redis:alpine
     container_name: nexctl-redis
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-opspilot-dev}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-nexctl-dev}
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
     ports:
       - "127.0.0.1:6379:6379"
@@ -40,15 +44,18 @@ services:
       context: ./server
       dockerfile: Dockerfile.dev
     container_name: nexctl-server
+    env_file:
+      - path: .env
+        required: false
     working_dir: /app
     volumes:
       - ./server:/app
-    command: go run ./cmd/server -config configs/config.example.yaml
     environment:
-      OPSPILOT_SERVER_EXTERNAL_URL: http://localhost:8080
+      # 未单独设置 OPSPILOT_SERVER_EXTERNAL_URL 时，默认与下方宿主机映射端口 OPSPILOT_SERVER_HOST_PORT 一致
+      OPSPILOT_SERVER_EXTERNAL_URL: ${OPSPILOT_SERVER_EXTERNAL_URL:-http://127.0.0.1:${OPSPILOT_SERVER_HOST_PORT:-8080}}
       OPSPILOT_MYSQL_DSN: root:${MYSQL_ROOT_PASSWORD:-password}@tcp(mysql:3306)/opspilot?charset=utf8mb4&parseTime=true&loc=Local
       OPSPILOT_REDIS_ADDR: redis:6379
-      OPSPILOT_REDIS_PASSWORD: ${REDIS_PASSWORD:-opspilot-dev}
+      OPSPILOT_REDIS_PASSWORD: ${REDIS_PASSWORD:-nexctl-dev}
       OPSPILOT_JWT_SECRET: ${OPSPILOT_JWT_SECRET:-change-me}
       OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS: ${OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     depends_on:
@@ -57,7 +64,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8315:8080"
+      - "${OPSPILOT_SERVER_HOST_PORT:-8080}:8080"
 
   # web:
   #   build:

@@ -9,12 +9,33 @@ cd server
 go run ./cmd/server -config configs/config.example.yaml
 ```
 
+仓库根目录 `docker compose up server` 使用 `Dockerfile.dev`：**构建镜像时**已将 `./cmd/server` 编译为 `/usr/local/bin/nexctl-server`，容器内直接执行该二进制（不再使用 `go run`）。修改 Go 源码后需 **`docker compose build server`**（或 `up --build`）重新编译进镜像；`./server:/app` 挂载仍用于挂载配置文件等，可覆盖镜像内 `/app` 下的同名文件。
+
 ## Dependencies
 
 - MySQL 8
 - Redis 7
 
 建议直接使用仓库根目录的 `docker compose up mysql redis`。Compose 中的 Redis 默认带口令（`REDIS_PASSWORD`，默认 `opspilot-dev`），在宿主机运行本服务时请设置环境变量 `OPSPILOT_REDIS_PASSWORD` 与之一致，或在配置文件中填写 `redis.password`。
+
+## 环境变量（覆盖 YAML）
+
+启动时若下列变量非空，会覆盖配置文件对应项（与 `internal/config/config.go` 中 `Load` 一致）：
+
+| 变量 | 作用 |
+|------|------|
+| `OPSPILOT_SERVER_LISTEN_ADDR` | 监听地址，如 `:8080` |
+| `OPSPILOT_SERVER_EXTERNAL_URL` | **控制面对外根 URL**（Agent 注册返回的 `ws_url` 由 `external_url` + `/api/v1/agents/ws` 拼接）。Docker 映射宿主机端口时请在 **仓库根目录** `.env` 中设置，或由 Compose 的 `environment` 传入。别名：`NEXCTL_SERVER_EXTERNAL_URL`。 |
+| `OPSPILOT_MYSQL_DSN` | MySQL DSN |
+| `OPSPILOT_REDIS_ADDR` / `OPSPILOT_REDIS_PASSWORD` / `OPSPILOT_REDIS_DB` | Redis |
+| `OPSPILOT_JWT_SECRET` | JWT 密钥 |
+| `OPSPILOT_WEBSOCKET_ALLOWED_ORIGINS` | 浏览器 WS Origin，逗号分隔 |
+
+本地直接 `go run` 时，进程会依次尝试加载 **当前目录** 与 **上一级目录** 的 `.env`（`godotenv`），因此在 `server/` 下启动时仍能读取仓库根目录的 `OPSPILOT_SERVER_EXTERNAL_URL`；**不会**覆盖已在 shell 中设置的变量。
+
+仓库根目录 `docker-compose.yml` 中 **`server` 服务**还使用（仅 Compose 插值，服务端进程不读取）：
+
+- **`OPSPILOT_SERVER_HOST_PORT`**：宿主机映射端口，默认 `8080`，格式为 `<宿主机端口>:8080`。未设置 **`OPSPILOT_SERVER_EXTERNAL_URL`** 时，会默认 `http://127.0.0.1:<OPSPILOT_SERVER_HOST_PORT>`，与映射端口对齐。
 
 ## Seed Data
 

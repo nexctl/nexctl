@@ -71,7 +71,10 @@ func Load(path string) (Config, error) {
 	if v := os.Getenv("OPSPILOT_SERVER_LISTEN_ADDR"); v != "" {
 		cfg.App.ListenAddr = v
 	}
-	if v := os.Getenv("OPSPILOT_SERVER_EXTERNAL_URL"); v != "" {
+	// 非空时覆盖 app.external_url（节点注册返回的 ws_url 等依赖此项）。支持 NEXCTL_ 别名；TrimSpace 避免 Windows .env 的 CRLF。
+	if v := strings.TrimSpace(os.Getenv("OPSPILOT_SERVER_EXTERNAL_URL")); v != "" {
+		cfg.App.ExternalURL = v
+	} else if v := strings.TrimSpace(os.Getenv("NEXCTL_SERVER_EXTERNAL_URL")); v != "" {
 		cfg.App.ExternalURL = v
 	}
 	if v := os.Getenv("OPSPILOT_MYSQL_DSN"); v != "" {
