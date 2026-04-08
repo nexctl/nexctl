@@ -95,6 +95,12 @@ export function EnrollmentDeployCommands({ nodeName, token, expiresAt }: Enrollm
 
       <div>
         <Typography.Text strong>{t('nodes.deployWindowsLabel')}</Typography.Text>
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginTop: 8 }}
+          message={t('nodes.deployWindowsAdminHint')}
+        />
         <Input.TextArea
           readOnly
           value={windowsCommand}

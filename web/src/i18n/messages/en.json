@@ -85,6 +85,7 @@
     "deployServerHint": "This URL is what the Agent uses to reach the API. If it is wrong, edit the command after copying, or set NEXT_PUBLIC_AGENT_SERVER_URL when building the console.",
     "deployLinuxLabel": "Linux / macOS / FreeBSD (curl)",
     "deployWindowsLabel": "Windows (PowerShell)",
+    "deployWindowsAdminHint": "Run PowerShell as Administrator to install the Agent as a Windows service (default: C:\\nexctl). As a standard user, files install under your profile and the Agent runs as a background process only—not as a service.",
     "deployCopyLinux": "Copy command",
     "deployCopyWindows": "Copy both lines",
     "deployCopiedCmd": "Command copied",
