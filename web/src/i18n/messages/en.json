@@ -151,7 +151,10 @@
     "toolbarTerminal": "Open terminal",
     "toolbarFile": "Distribute file",
     "toolbarUpgrade": "Upgrade agent",
-    "featureComingSoon": "This feature is not wired to the control plane and agent yet."
+    "featureComingSoon": "This feature is not wired to the control plane and agent yet.",
+    "terminalModalTitle": "Web terminal — {{name}}",
+    "terminalNeedLogin": "Please sign in to open the terminal.",
+    "terminalConnectFailed": "Terminal connection failed. Ensure the node is online and WebSocket proxying is configured."
   },
   "tasks": {
     "headerTitle": "Tasks",

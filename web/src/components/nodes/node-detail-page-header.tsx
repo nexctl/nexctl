@@ -49,7 +49,7 @@ export function NodeDetailPageHeader({ id, name }: { id: number; name: string })
             </Button>
           </Popconfirm>
         </Space>
-        <NodeToolbar />
+        <NodeToolbar nodeId={id} nodeName={name} />
       </Space>
     </Card>
   );

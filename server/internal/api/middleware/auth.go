@@ -10,6 +10,11 @@ import (
 	"github.com/nexctl/nexctl/server/pkg/response"
 )
 
+// RoleAllowsPermission 判断角色是否具备某权限（供 WebSocket 等非标准中间件链复用）。
+func RoleAllowsPermission(roleCode, required string) bool {
+	return roleAllowsPermission(roleCode, required)
+}
+
 func roleAllowsPermission(roleCode, required string) bool {
 	if required == "" {
 		return true

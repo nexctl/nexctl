@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { NodeInstallModal } from '@/components/nodes/node-install-modal';
+import { NodeTerminalModal } from '@/components/nodes/node-terminal-modal';
 import { deleteNode } from '@/services/node';
 import type { NodeItem } from '@/types/node';
 
@@ -35,6 +36,7 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
   const t = useT();
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [installNode, setInstallNode] = useState<NodeItem | null>(null);
+  const [terminalNode, setTerminalNode] = useState<NodeItem | null>(null);
 
   const columns: ColumnsType<NodeItem> = useMemo(
     () => [
@@ -119,7 +121,7 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
             <Button
               size="small"
               icon={<SendOutlined />}
-              onClick={() => message.info(t('nodes.featureComingSoon'))}
+              onClick={() => setTerminalNode(row)}
             >
               {t('nodes.terminal')}
             </Button>
@@ -176,6 +178,14 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
         onClose={() => setInstallNode(null)}
         node={installNode}
       />
+      {terminalNode !== null ? (
+        <NodeTerminalModal
+          open
+          onClose={() => setTerminalNode(null)}
+          nodeId={terminalNode.id}
+          nodeName={terminalNode.name}
+        />
+      ) : null}
     </>
   );
 }

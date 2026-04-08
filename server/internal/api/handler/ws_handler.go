@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/nexctl/nexctl/server/internal/model"
 	"github.com/nexctl/nexctl/server/internal/node"
 	"github.com/nexctl/nexctl/server/internal/ws"
 	"go.uber.org/zap"
@@ -74,12 +75,17 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("upgrade websocket", zap.Error(err))
 		return
 	}
-	defer conn.Close()
 
 	conn.SetReadLimit(1 << 20)
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Minute))
+
+	send, unregister := h.ws.AgentHub.Register(nodeRecord.ID)
+	defer unregister()
+	defer conn.Close()
+
+	go ws.WritePump(conn, send)
 
 	for {
+		_ = conn.SetReadDeadline(time.Now().Add(120 * time.Second))
 		var message ws.Message
 		if err := conn.ReadJSON(&message); err != nil {
 			h.logger.Info("agent websocket disconnected", zap.Int64("node_id", nodeRecord.ID), zap.Error(err))
@@ -88,59 +94,15 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 
 		switch message.Type {
 		case ws.MessageTypeHeartbeat:
-			var payload ws.HeartbeatPayload
-			if err := json.Unmarshal(message.Payload, &payload); err != nil {
-				_ = conn.WriteJSON(ws.Message{
-					Type:      ws.MessageTypeError,
-					RequestID: message.RequestID,
-					Timestamp: time.Now().UTC(),
-					Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeHeartbeat, Message: "invalid heartbeat payload"}),
-				})
-				continue
-			}
-			if appErr := h.ws.HandleHeartbeat(r.Context(), nodeRecord, payload); appErr != nil {
-				_ = conn.WriteJSON(ws.Message{
-					Type:      ws.MessageTypeError,
-					RequestID: message.RequestID,
-					Timestamp: time.Now().UTC(),
-					Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeHeartbeat, Message: appErr.Message}),
-				})
-				continue
-			}
-			_ = conn.WriteJSON(ws.Message{
-				Type:      ws.MessageTypeAck,
-				RequestID: message.RequestID,
-				Timestamp: time.Now().UTC(),
-				Payload:   mustPayload(ws.AckPayload{MessageType: ws.MessageTypeHeartbeat, Status: "ok"}),
-			})
+			h.handleAgentHeartbeat(r, send, nodeRecord, message)
 		case ws.MessageTypeRuntimeState:
-			var payload ws.RuntimeStatePayload
-			if err := json.Unmarshal(message.Payload, &payload); err != nil {
-				_ = conn.WriteJSON(ws.Message{
-					Type:      ws.MessageTypeError,
-					RequestID: message.RequestID,
-					Timestamp: time.Now().UTC(),
-					Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeRuntimeState, Message: "invalid runtime_state payload"}),
-				})
-				continue
-			}
-			if appErr := h.ws.HandleRuntimeState(r.Context(), nodeRecord, payload); appErr != nil {
-				_ = conn.WriteJSON(ws.Message{
-					Type:      ws.MessageTypeError,
-					RequestID: message.RequestID,
-					Timestamp: time.Now().UTC(),
-					Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeRuntimeState, Message: appErr.Message}),
-				})
-				continue
-			}
-			_ = conn.WriteJSON(ws.Message{
-				Type:      ws.MessageTypeAck,
-				RequestID: message.RequestID,
-				Timestamp: time.Now().UTC(),
-				Payload:   mustPayload(ws.AckPayload{MessageType: ws.MessageTypeRuntimeState, Status: "ok"}),
-			})
+			h.handleAgentRuntimeState(r, send, nodeRecord, message)
+		case ws.MessageTypeTerminalOutput:
+			h.handleAgentTerminalOutput(message)
+		case ws.MessageTypeTerminalExit:
+			h.handleAgentTerminalExit(message)
 		default:
-			_ = conn.WriteJSON(ws.Message{
+			enqueueAgentSend(send, ws.Message{
 				Type:      ws.MessageTypeError,
 				RequestID: message.RequestID,
 				Timestamp: time.Now().UTC(),
@@ -148,6 +110,96 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+}
+
+func enqueueAgentSend(send chan<- ws.Message, msg ws.Message) {
+	select {
+	case send <- msg:
+	default:
+	}
+}
+
+func (h *WSHandler) handleAgentTerminalOutput(message ws.Message) {
+	var payload ws.TerminalOutputPayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		return
+	}
+	if strings.TrimSpace(payload.SessionID) == "" {
+		return
+	}
+	_ = h.ws.TerminalBridge.DispatchFromAgent(payload.SessionID, message)
+}
+
+func (h *WSHandler) handleAgentTerminalExit(message ws.Message) {
+	var payload ws.TerminalExitPayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		return
+	}
+	if strings.TrimSpace(payload.SessionID) == "" {
+		return
+	}
+	fwd := ws.Message{
+		Type:      ws.MessageTypeTerminalExit,
+		Timestamp: time.Now().UTC(),
+		Payload:   message.Payload,
+	}
+	_ = h.ws.TerminalBridge.DispatchFromAgent(payload.SessionID, fwd)
+}
+
+func (h *WSHandler) handleAgentHeartbeat(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {
+	var payload ws.HeartbeatPayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		enqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeHeartbeat, Message: "invalid heartbeat payload"}),
+		})
+		return
+	}
+	if appErr := h.ws.HandleHeartbeat(r.Context(), nodeRecord, payload); appErr != nil {
+		enqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeHeartbeat, Message: appErr.Message}),
+		})
+		return
+	}
+	enqueueAgentSend(send, ws.Message{
+		Type:      ws.MessageTypeAck,
+		RequestID: message.RequestID,
+		Timestamp: time.Now().UTC(),
+		Payload:   mustPayload(ws.AckPayload{MessageType: ws.MessageTypeHeartbeat, Status: "ok"}),
+	})
+}
+
+func (h *WSHandler) handleAgentRuntimeState(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {
+	var payload ws.RuntimeStatePayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		enqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeRuntimeState, Message: "invalid runtime_state payload"}),
+		})
+		return
+	}
+	if appErr := h.ws.HandleRuntimeState(r.Context(), nodeRecord, payload); appErr != nil {
+		enqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeRuntimeState, Message: appErr.Message}),
+		})
+		return
+	}
+	enqueueAgentSend(send, ws.Message{
+		Type:      ws.MessageTypeAck,
+		RequestID: message.RequestID,
+		Timestamp: time.Now().UTC(),
+		Payload:   mustPayload(ws.AckPayload{MessageType: ws.MessageTypeRuntimeState, Status: "ok"}),
+	})
 }
 
 func mustPayload(v any) json.RawMessage {

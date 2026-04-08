@@ -30,13 +30,14 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 	healthHandler := handler.NewHealthHandler(db, rdb)
 	moduleHandler := handler.NewModuleHandler(taskService, fileService, upgradeService, alertService, auditService)
 	wsHandler := handler.NewWSHandler(nodeService, wsService, logger, cfg.App.WebSocketAllowedOrigins)
+	terminalWSHandler := handler.NewTerminalWSHandler(cfg.Auth, wsService, logger, cfg.App.WebSocketAllowedOrigins)
 
 	authMiddleware := apimiddleware.NewAuthMiddleware(cfg.Auth)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
-	r.Use(chimiddleware.Timeout(30 * time.Second))
+	// 根路由不设短 Timeout，避免浏览器终端 WebSocket 长连接被中断；短超时仅挂在下方纯 HTTP API 子树。
 	r.Use(apimiddleware.Logging(logger))
 	r.Use(apimiddleware.Recover(logger))
 
@@ -48,8 +49,10 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 		api.Post("/auth/login", loginRL(authHandler.Login))
 		api.Post("/agents/register", registerRL(nodeHandler.Register))
 		api.Get("/agents/ws", wsHandler.AgentConnect)
+		api.Get("/nodes/{nodeID}/terminal/ws", terminalWSHandler.ServeWS)
 
 		api.Group(func(protected chi.Router) {
+			protected.Use(chimiddleware.Timeout(30 * time.Second))
 			protected.Use(authMiddleware.RequireLogin)
 
 			protected.Get("/me", nodeHandler.CurrentUser)

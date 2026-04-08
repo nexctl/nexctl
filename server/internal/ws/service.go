@@ -30,7 +30,58 @@ const (
 	MessageTypeFileDispatch = "file_dispatch"
 	// MessageTypeUpgradeCommand is reserved for future upgrade commands.
 	MessageTypeUpgradeCommand = "upgrade_command"
+
+	// 终端（浏览器 <-> 控制面 <-> Agent PTY）
+	MessageTypeTerminalOpen    = "terminal_open"
+	MessageTypeTerminalInput   = "terminal_input"
+	MessageTypeTerminalResize  = "terminal_resize"
+	MessageTypeTerminalClose   = "terminal_close"
+	MessageTypeTerminalOutput  = "terminal_output"
+	MessageTypeTerminalExit    = "terminal_exit"
+	MessageTypeTerminalError   = "terminal_error"
 )
+
+// TerminalOpenPayload 控制面 -> Agent：创建 PTY 会话。
+type TerminalOpenPayload struct {
+	SessionID string `json:"session_id"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+}
+
+// TerminalInputPayload 控制面 -> Agent：用户键盘输入。
+type TerminalInputPayload struct {
+	SessionID string `json:"session_id"`
+	Data      string `json:"data"` // base64
+}
+
+// TerminalResizePayload 控制面 -> Agent：窗口大小。
+type TerminalResizePayload struct {
+	SessionID string `json:"session_id"`
+	Cols      int    `json:"cols"`
+	Rows      int    `json:"rows"`
+}
+
+// TerminalClosePayload 控制面 -> Agent 或任一端：关闭会话。
+type TerminalClosePayload struct {
+	SessionID string `json:"session_id"`
+}
+
+// TerminalOutputPayload Agent -> 控制面：PTY 输出。
+type TerminalOutputPayload struct {
+	SessionID string `json:"session_id"`
+	Data      string `json:"data"` // base64
+}
+
+// TerminalExitPayload Agent -> 控制面：子进程退出。
+type TerminalExitPayload struct {
+	SessionID string `json:"session_id"`
+	Code      int    `json:"code"`
+}
+
+// TerminalErrorPayload 控制面 -> 浏览器：错误说明。
+type TerminalErrorPayload struct {
+	Message string `json:"message"`
+}
 
 // Message is the base websocket envelope.
 type Message struct {
@@ -80,17 +131,22 @@ type Service struct {
 	cache   repository.NodeSessionCache
 	audit   *audit.Service
 	logger  *zap.Logger
+
+	AgentHub       *AgentHub
+	TerminalBridge *TerminalBridge
 }
 
 // NewService creates a websocket service.
 func NewService(cfg config.NodeConfig, nodes repository.NodeRepository, runtime *runtime.Service, cache repository.NodeSessionCache, audit *audit.Service, logger *zap.Logger) *Service {
 	return &Service{
-		cfg:     cfg,
-		nodes:   nodes,
-		runtime: runtime,
-		cache:   cache,
-		audit:   audit,
-		logger:  logger,
+		cfg:            cfg,
+		nodes:          nodes,
+		runtime:        runtime,
+		cache:          cache,
+		audit:          audit,
+		logger:         logger,
+		AgentHub:       NewAgentHub(),
+		TerminalBridge: NewTerminalBridge(),
 	}
 }
 

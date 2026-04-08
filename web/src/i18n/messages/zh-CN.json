@@ -151,7 +151,10 @@
     "toolbarTerminal": "打开终端",
     "toolbarFile": "分发文件",
     "toolbarUpgrade": "升级 Agent",
-    "featureComingSoon": "该功能尚未接入控制面与 Agent，敬请期待。"
+    "featureComingSoon": "该功能尚未接入控制面与 Agent，敬请期待。",
+    "terminalModalTitle": "Web 终端 — {{name}}",
+    "terminalNeedLogin": "请先登录后再打开终端。",
+    "terminalConnectFailed": "终端连接失败（请确认节点在线且已配置 WebSocket 反代）。"
   },
   "tasks": {
     "headerTitle": "任务中心",
