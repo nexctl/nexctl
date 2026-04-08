@@ -16,6 +16,7 @@ set -eu
 #   CN=1                视为中国大陆网络，走 GitHub 代理加速下载（见 NEXCTL_GH_PROXY）
 #   NEXCTL_NO_MIRROR=1  禁用代理，始终直连 GitHub
 #   NEXCTL_GH_PROXY     默认 https://ghproxy.net/https://
+#   NEXCTL_NO_SERVICE=1 root/管理员安装时仍用 nohup/后台进程，不注册 systemd/Windows 服务
 #   NO_COLOR=1          禁用彩色输出
 
 # ---------- 终端颜色（对齐 nezha 风格）----------
@@ -164,6 +165,12 @@ download_with_retry() {
 # ---------- 卸载 ----------
 uninstall_nexctl() {
   info "正在停止 nexctl-agent 进程..."
+  _svc_bin="/opt/nexctl/agent/nexctl-agent"
+  _svc_cfg="/opt/nexctl/agent/agent.yaml"
+  if [ -x "$_svc_bin" ] && [ -f "$_svc_cfg" ]; then
+    "$_svc_bin" service stop -config "$_svc_cfg" 2>/dev/null || true
+    "$_svc_bin" service uninstall -config "$_svc_cfg" 2>/dev/null || true
+  fi
   if command -v pkill >/dev/null 2>&1; then
     pkill -f '[n]exctl-agent' 2>/dev/null || true
   fi
@@ -312,25 +319,50 @@ if [ "$(id -u)" -eq 0 ] && [ -d /opt/nexctl/agent ]; then
 fi
 
 STDOUT_LOG="${DATA_ROOT}/data/logs/install-stdout.log"
-# nohup 需对非 root 可写路径；root 下 /opt/nexctl 已可写
-nohup "$BIN_PATH" -config "$CONFIG_FILE" >>"$STDOUT_LOG" 2>&1 &
-AGENT_PID=$!
+USE_SERVICE=""
+if [ "$(id -u)" -eq 0 ] && [ -z "${NEXCTL_NO_SERVICE:-}" ] && [ "$GOOS" != "windows" ]; then
+  case "$GOOS" in
+    linux | darwin | freebsd)
+      if "$BIN_PATH" service install -config "$CONFIG_FILE"; then
+        if "$BIN_PATH" service start -config "$CONFIG_FILE"; then
+          USE_SERVICE=1
+        else
+          info "服务启动失败，已尝试卸载服务单元后改用 nohup。"
+          "$BIN_PATH" service uninstall -config "$CONFIG_FILE" 2>/dev/null || true
+        fi
+      else
+        info "注册系统服务失败，改用 nohup 后台运行（可设置 NEXCTL_NO_SERVICE=1 跳过服务步骤）。"
+      fi
+      ;;
+    *) ;;
+  esac
+fi
 
-sleep 1
-if ! kill -0 "$AGENT_PID" 2>/dev/null; then
-  err "警告: agent 进程可能已异常退出，请查看 ${STDOUT_LOG} 与 ${DATA_ROOT}/data/logs/agent.log"
+if [ -z "$USE_SERVICE" ]; then
+  # nohup 需对非 root 可写路径；root 下 /opt/nexctl 已可写
+  nohup "$BIN_PATH" -config "$CONFIG_FILE" >>"$STDOUT_LOG" 2>&1 &
+  AGENT_PID=$!
+  sleep 1
+  if ! kill -0 "$AGENT_PID" 2>/dev/null; then
+    err "警告: agent 进程可能已异常退出，请查看 ${STDOUT_LOG} 与 ${DATA_ROOT}/data/logs/agent.log"
+  fi
 fi
 
 echo ""
 success "安装完成。"
 echo "  二进制: ${BIN_PATH}"
 echo "  配置: ${CONFIG_FILE}"
-info "  已在后台启动 agent（PID ${AGENT_PID}），日志目录: ${DATA_ROOT}/data/logs"
-echo "  标准输出/错误追加: ${STDOUT_LOG}"
-echo ""
-echo "如需前台调试:"
-echo "  kill ${AGENT_PID}"
-echo "  ${BIN_PATH} -config ${CONFIG_FILE}"
+if [ -n "$USE_SERVICE" ]; then
+  info "  已安装并启动系统服务（与 nexctl-agent service 子命令一致），日志目录: ${DATA_ROOT}/data/logs"
+  echo "  管理示例: ${BIN_PATH} service status -config ${CONFIG_FILE}"
+else
+  info "  已在后台启动 agent（PID ${AGENT_PID}），日志目录: ${DATA_ROOT}/data/logs"
+  echo "  标准输出/错误追加: ${STDOUT_LOG}"
+  echo ""
+  echo "如需前台调试:"
+  echo "  kill ${AGENT_PID}"
+  echo "  ${BIN_PATH} -config ${CONFIG_FILE}"
+fi
 echo ""
 
 if [ "$(id -u)" -ne 0 ]; then

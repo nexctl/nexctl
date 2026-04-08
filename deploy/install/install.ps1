@@ -10,7 +10,7 @@
 .EXAMPLE
   .\install.ps1 -Uninstall
 
-  环境变量：NEXCTL_AGENT_REPO、CN=1、NEXCTL_NO_MIRROR=1、NEXCTL_GH_PROXY
+  环境变量：NEXCTL_AGENT_REPO、CN=1、NEXCTL_NO_MIRROR=1、NEXCTL_GH_PROXY、NEXCTL_NO_SERVICE=1（管理员也不注册 Windows 服务）
 
   远程一键：请把脚本保存到 %TEMP% 或用户目录（例如 -OutFile "$env:TEMP\nexctl-install.ps1"），
   勿在 C:\ 根目录写入 install.ps1，否则可能「对路径的访问被拒绝」。
@@ -113,6 +113,17 @@ function Download-FileRetry {
 # ---------- 卸载 ----------
 if ($Uninstall) {
   Write-Info '正在卸载 NexCtl Agent...'
+  $svcPairs = @(
+    @('C:\nexctl\nexctl-agent.exe', 'C:\nexctl\agent.yaml'),
+    @((Join-Path $env:ProgramFiles 'nexctl\nexctl-agent.exe'), (Join-Path $env:ProgramFiles 'nexctl\agent.yaml'))
+  )
+  foreach ($pair in $svcPairs) {
+    $exe, $cfg = $pair[0], $pair[1]
+    if ((Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $cfg)) {
+      & $exe @('service', 'stop', '-config', $cfg) 2>$null
+      & $exe @('service', 'uninstall', '-config', $cfg) 2>$null
+    }
+  }
   Get-Process -Name 'nexctl-agent' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
   Start-Sleep -Seconds 1
   $paths = @('C:\nexctl', (Join-Path $env:ProgramFiles 'nexctl'))
@@ -261,25 +272,49 @@ agent:
     Set-Content -LiteralPath (Join-Path $BaseDir '.nexctl-install') -Value 'nexctl-install-script' -Encoding ascii
   }
 
+  $ConfigFileAbs = [System.IO.Path]::GetFullPath($ConfigFile)
+  $useService = $false
+  if ($IsAdmin -and $env:NEXCTL_NO_SERVICE -ne '1') {
+    & $BinPath @('service', 'install', '-config', $ConfigFileAbs)
+    if ($LASTEXITCODE -eq 0) {
+      & $BinPath @('service', 'start', '-config', $ConfigFileAbs)
+      if ($LASTEXITCODE -eq 0) {
+        $useService = $true
+      } else {
+        & $BinPath @('service', 'uninstall', '-config', $ConfigFileAbs) 2>$null
+        Write-WarnLine '服务启动失败，已卸载服务并改用后台进程。'
+      }
+    } else {
+      Write-WarnLine '注册 Windows 服务失败，改用后台进程启动（可设置 NEXCTL_NO_SERVICE=1 跳过服务步骤）。'
+    }
+  }
+
   $StdoutLog = Join-Path $DataRoot 'data\logs\install-stdout.log'
   $StderrLog = Join-Path $DataRoot 'data\logs\install-stderr.log'
-  $proc = Start-Process -FilePath $BinPath -ArgumentList @('-config', $ConfigFile) -PassThru -WindowStyle Hidden `
-    -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
-
-  Start-Sleep -Seconds 1
-  $still = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
-  if (-not $still) {
-    Write-Warning "agent 可能已退出，请查看 $StdoutLog、$StderrLog 与 $(Join-Path $DataRoot 'data\logs\agent.log')"
+  $proc = $null
+  if (-not $useService) {
+    $proc = Start-Process -FilePath $BinPath -ArgumentList @('-config', $ConfigFile) -PassThru -WindowStyle Hidden `
+      -RedirectStandardOutput $StdoutLog -RedirectStandardError $StderrLog
+    Start-Sleep -Seconds 1
+    $still = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+    if (-not $still) {
+      Write-Warning "agent 可能已退出，请查看 $StdoutLog、$StderrLog 与 $(Join-Path $DataRoot 'data\logs\agent.log')"
+    }
   }
 
   Write-Info '安装完成。'
   Write-Host "  二进制: $BinPath"
   Write-Host "  配置: $ConfigFile"
-  Write-Host "  PID: $($proc.Id)  日志: $(Join-Path $DataRoot 'data\logs')"
-  Write-Host ''
-  Write-Host '如需前台调试，可先结束进程再运行:'
-  Write-Host ("  Stop-Process -Id {0} -ErrorAction SilentlyContinue" -f $proc.Id)
-  Write-Host ("  & '{0}' -config '{1}'" -f $BinPath, $ConfigFile)
+  if ($useService) {
+    Write-Host ('  已安装并启动 Windows 服务，日志: ' + (Join-Path $DataRoot 'data\logs'))
+    Write-Host ("  管理示例: & '{0}' service status -config '{1}'" -f $BinPath, $ConfigFileAbs)
+  } else {
+    Write-Host "  PID: $($proc.Id)  日志: $(Join-Path $DataRoot 'data\logs')"
+    Write-Host ''
+    Write-Host '如需前台调试，可先结束进程再运行:'
+    Write-Host ("  Stop-Process -Id {0} -ErrorAction SilentlyContinue" -f $proc.Id)
+    Write-Host ("  & '{0}' -config '{1}'" -f $BinPath, $ConfigFile)
+  }
   Write-Host ''
 
   if (-not $IsAdmin) {
