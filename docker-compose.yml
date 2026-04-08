@@ -57,7 +57,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8315:8080"
+      - "8315:8080"
 
   # web:
   #   build:

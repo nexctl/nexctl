@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  CloudDownloadOutlined,
   CodeOutlined,
   DeleteOutlined,
   FileSyncOutlined,
@@ -12,6 +13,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useT } from '@/i18n';
+import { NodeInstallModal } from '@/components/nodes/node-install-modal';
 import { deleteNode } from '@/services/node';
 import type { NodeItem } from '@/types/node';
 
@@ -21,11 +23,18 @@ function formatStatus(value: string, t: ReturnType<typeof useT>) {
   return s === k ? value : s;
 }
 
-export function NodeTable({ nodes }: { nodes: NodeItem[] }) {
+type NodeTableProps = {
+  nodes: NodeItem[];
+  /** 删除成功后刷新列表（客户端拉数据时使用，替代 router.refresh） */
+  onAfterDelete?: () => void;
+};
+
+export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
   const router = useRouter();
   const { message } = App.useApp();
   const t = useT();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [installNode, setInstallNode] = useState<NodeItem | null>(null);
 
   const columns: ColumnsType<NodeItem> = useMemo(
     () => [
@@ -63,19 +72,19 @@ export function NodeTable({ nodes }: { nodes: NodeItem[] }) {
         title: 'CPU',
         key: 'cpu',
         width: 90,
-        render: (_, row) => `${row.runtime_state.cpu_percent.toFixed(1)}%`,
+        render: (_, row) => `${(row.runtime_state?.cpu_percent ?? 0).toFixed(1)}%`,
       },
       {
         title: t('nodes.tableMem'),
         key: 'memory',
         width: 90,
-        render: (_, row) => `${row.runtime_state.memory_percent.toFixed(1)}%`,
+        render: (_, row) => `${(row.runtime_state?.memory_percent ?? 0).toFixed(1)}%`,
       },
       {
         title: t('nodes.tableDisk'),
         key: 'disk',
         width: 90,
-        render: (_, row) => `${row.runtime_state.disk_percent.toFixed(1)}%`,
+        render: (_, row) => `${(row.runtime_state?.disk_percent ?? 0).toFixed(1)}%`,
       },
       { title: t('nodes.tableHeartbeat'), dataIndex: 'last_heartbeat_at', key: 'last_heartbeat_at', width: 180 },
       {
@@ -94,9 +103,12 @@ export function NodeTable({ nodes }: { nodes: NodeItem[] }) {
         title: t('nodes.tableActions'),
         key: 'actions',
         fixed: 'right',
-        width: 280,
+        width: 340,
         render: (_, row) => (
           <Space wrap>
+            <Button size="small" icon={<CloudDownloadOutlined />} onClick={() => setInstallNode(row)}>
+              {t('nodes.install')}
+            </Button>
             <Button size="small" icon={<CodeOutlined />}>
               {t('nodes.cmd')}
             </Button>
@@ -124,6 +136,7 @@ export function NodeTable({ nodes }: { nodes: NodeItem[] }) {
                 try {
                   await deleteNode(row.id);
                   message.success(t('nodes.deleted', { name: row.name }));
+                  onAfterDelete?.();
                   router.refresh();
                 } catch (e) {
                   message.error(e instanceof Error ? e.message : t('nodes.deleteFailed'));
@@ -140,8 +153,17 @@ export function NodeTable({ nodes }: { nodes: NodeItem[] }) {
         ),
       },
     ],
-    [t, deletingId, message, router],
+    [t, deletingId, message, router, onAfterDelete],
   );
 
-  return <Table rowKey="id" columns={columns} dataSource={nodes} scroll={{ x: 1500 }} />;
+  return (
+    <>
+      <Table rowKey="id" columns={columns} dataSource={nodes} scroll={{ x: 1500 }} />
+      <NodeInstallModal
+        open={installNode !== null}
+        onClose={() => setInstallNode(null)}
+        node={installNode}
+      />
+    </>
+  );
 }

@@ -23,12 +23,12 @@ export function DashboardOverview({ nodes }: { nodes: NodeItem[] }) {
       {
         title: t('dashboard.colCpu'),
         key: 'cpu',
-        render: (_: unknown, row: NodeItem) => `${row.runtime_state.cpu_percent.toFixed(1)}%`,
+        render: (_: unknown, row: NodeItem) => `${(row.runtime_state?.cpu_percent ?? 0).toFixed(1)}%`,
       },
       {
         title: t('dashboard.colMemory'),
         key: 'memory',
-        render: (_: unknown, row: NodeItem) => `${row.runtime_state.memory_percent.toFixed(1)}%`,
+        render: (_: unknown, row: NodeItem) => `${(row.runtime_state?.memory_percent ?? 0).toFixed(1)}%`,
       },
     ],
     [t],
@@ -61,7 +61,11 @@ export function DashboardOverview({ nodes }: { nodes: NodeItem[] }) {
                     {statusLabel(node.status, t)}
                   </Tag>
                 </div>
-                <Progress percent={Math.round(node.runtime_state.cpu_percent)} size="small" status="active" />
+                <Progress
+                  percent={Math.round(node.runtime_state?.cpu_percent ?? 0)}
+                  size="small"
+                  status="active"
+                />
               </div>
             ))}
           </Card>

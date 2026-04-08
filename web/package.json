@@ -10,7 +10,7 @@
   },
   "scripts": {
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
     "dev:docker": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start",

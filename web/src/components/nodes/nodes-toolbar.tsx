@@ -7,7 +7,11 @@ import { AddNodeModal } from '@/components/nodes/add-node-modal';
 import { useT } from '@/i18n';
 import { useRouter } from 'next/navigation';
 
-export function NodesToolbar() {
+type Props = {
+  onNodeCreated?: () => void;
+};
+
+export function NodesToolbar({ onNodeCreated }: Props) {
   const router = useRouter();
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -19,7 +23,14 @@ export function NodesToolbar() {
           {t('nodes.addNode')}
         </Button>
       </Space>
-      <AddNodeModal open={open} onClose={() => setOpen(false)} onCreated={() => router.refresh()} />
+      <AddNodeModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onCreated={() => {
+          onNodeCreated?.();
+          router.refresh();
+        }}
+      />
     </>
   );
 }

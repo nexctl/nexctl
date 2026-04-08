@@ -9,6 +9,19 @@ pnpm install
 pnpm dev
 ```
 
+`pnpm dev` 已绑定 `0.0.0.0:3000`，便于局域网访问。
+
+若通过 **局域网 IP**（如 `http://192.168.0.38:3000`）打开控制台，浏览器可能出现 **`/_next/webpack-hmr` WebSocket 失败**：这是 Next 开发模式下的跨站资源保护。请在 `web/.env.local` 中增加本机在该网段下的 **主机名**（逗号分隔多个），然后**重启** `pnpm dev`：
+
+```bash
+# 仅主机名，或与下面二选一
+NEXT_DEV_ALLOWED_ORIGINS=192.168.0.38
+# 也可写完整来源，配置里会解析为 hostname
+# NEXT_DEV_ALLOWED_ORIGINS=http://192.168.0.38:3000
+```
+
+详见 [allowedDevOrigins](https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins)。
+
 根目录含 `.npmrc`（`node-linker=hoisted`），减轻 Windows 下 Next `standalone` 构建时的符号链接问题；与 Linux/Docker 兼容。
 
 若出现 **`Cannot find module './xxx.js'`**（webpack chunk 缺失），多为 `.next` 缓存与当前构建不一致：先执行 **`pnpm clean`**，再重新 **`pnpm dev`** 或 **`pnpm build`**。

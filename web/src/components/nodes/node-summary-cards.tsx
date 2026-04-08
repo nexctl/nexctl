@@ -66,15 +66,21 @@ export function NodeSummaryCards({ detail }: { detail: NodeDetail }) {
             <Space orientation="vertical" size={12} style={{ width: '100%' }}>
               <div>
                 <Typography.Text>CPU</Typography.Text>
-                <Progress percent={Math.round(detail.runtime_state.cpu_percent)} />
+                <Progress percent={Math.round(detail.runtime_state?.cpu_percent ?? 0)} />
               </div>
               <div>
                 <Typography.Text>{t('dashboard.colMemory')}</Typography.Text>
-                <Progress percent={Math.round(detail.runtime_state.memory_percent)} status="active" />
+                <Progress
+                  percent={Math.round(detail.runtime_state?.memory_percent ?? 0)}
+                  status="active"
+                />
               </div>
               <div>
                 <Typography.Text>{t('nodes.tableDisk')}</Typography.Text>
-                <Progress percent={Math.round(detail.runtime_state.disk_percent)} strokeColor="#d97706" />
+                <Progress
+                  percent={Math.round(detail.runtime_state?.disk_percent ?? 0)}
+                  strokeColor="#d97706"
+                />
               </div>
             </Space>
           </Card>
@@ -84,8 +90,14 @@ export function NodeSummaryCards({ detail }: { detail: NodeDetail }) {
       <Row gutter={16}>
         <Col xs={24} xl={12}>
           <Card className="page-card" title={t('nodes.summaryCpuMemTrend')}>
-            <MiniLineChart values={detail.short_term_metrics.map((item) => item.cpu)} color="#1677ff" />
-            <MiniLineChart values={detail.short_term_metrics.map((item) => item.memory)} color="#16a34a" />
+            <MiniLineChart
+              values={(detail.short_term_metrics ?? []).map((item) => item.cpu)}
+              color="#1677ff"
+            />
+            <MiniLineChart
+              values={(detail.short_term_metrics ?? []).map((item) => item.memory)}
+              color="#16a34a"
+            />
           </Card>
         </Col>
         <Col xs={24} xl={12}>

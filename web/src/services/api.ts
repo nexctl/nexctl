@@ -35,11 +35,24 @@ export async function apiRequest<T>(path: string, init?: RequestInit, fallback?:
       cache: 'no-store',
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+    const text = await response.text();
+    let envelope: ApiEnvelope<T> | null = null;
+    if (text) {
+      try {
+        envelope = JSON.parse(text) as ApiEnvelope<T>;
+      } catch {
+        envelope = null;
+      }
     }
 
-    const envelope = (await response.json()) as ApiEnvelope<T>;
+    if (!response.ok) {
+      const msg = envelope?.message?.trim() || `HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
+    if (!envelope) {
+      throw new Error(`HTTP ${response.status}: empty body`);
+    }
     if (envelope.code !== 0) {
       throw new Error(envelope.message);
     }
@@ -51,4 +64,3 @@ export async function apiRequest<T>(path: string, init?: RequestInit, fallback?:
     throw error;
   }
 }
-

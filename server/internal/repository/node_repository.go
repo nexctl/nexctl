@@ -21,6 +21,8 @@ type NodeRepository interface {
 	GetByAgentCredential(ctx context.Context, agentID, agentSecret string) (*model.Node, error)
 	List(ctx context.Context) ([]*model.Node, error)
 	UpdateHeartbeat(ctx context.Context, nodeID int64, seenAt time.Time, status string) error
+	// SetPendingEnrollmentToken replaces enrollment hash/expiry for a row that is still pending (awaiting agent).
+	SetPendingEnrollmentToken(ctx context.Context, nodeID int64, enrollmentTokenHash string, enrollmentExpiresAt *time.Time) error
 	CompleteEnrollment(ctx context.Context, node *model.Node) error
 	MarkTimedOutNodes(ctx context.Context, unstableBefore, offlineBefore time.Time) error
 	DeleteByID(ctx context.Context, id int64) error
@@ -116,6 +118,22 @@ func (r *MySQLNodeRepository) DeleteByID(ctx context.Context, id int64) error {
 	n, err := res.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("delete node rows affected: %w", err)
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// SetPendingEnrollmentToken updates enrollment fields for a pending node (e.g. re-issue install token).
+func (r *MySQLNodeRepository) SetPendingEnrollmentToken(ctx context.Context, nodeID int64, enrollmentTokenHash string, enrollmentExpiresAt *time.Time) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE nodes SET enrollment_token_hash = ?, enrollment_expires_at = ?, updated_at = NOW() WHERE id = ? AND status = ?`, enrollmentTokenHash, enrollmentExpiresAt, nodeID, model.NodeStatusPending)
+	if err != nil {
+		return fmt.Errorf("set pending enrollment token: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set pending enrollment rows: %w", err)
 	}
 	if n == 0 {
 		return sql.ErrNoRows

@@ -25,7 +25,8 @@ export interface NodeItem {
   agent_version: string;
   last_heartbeat_at: string;
   labels: string[];
-  runtime_state: RuntimeState;
+  /** 未上报或尚无数据时后端可能省略该字段 */
+  runtime_state?: RuntimeState;
 }
 
 export interface ServiceInfo {

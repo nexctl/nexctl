@@ -62,13 +62,13 @@ export function buildLinuxInstallCommand(serverUrl: string, enrollmentToken: str
   return `curl -fsSL ${base}/install.sh | sh -s -- ${url} ${tok}`;
 }
 
-/** Windows：下载脚本 + 执行（两行，便于复制） */
+/** Windows：下载到用户可写目录（%TEMP%），避免在 C:\\ 等根目录写入 install.ps1 遭拒绝 */
 export function buildWindowsInstallLines(serverUrl: string, enrollmentToken: string): string {
   const base = getInstallScriptBaseUrl();
   const su = escapePowerShellSingleQuoted(serverUrl);
   const tok = escapePowerShellSingleQuoted(enrollmentToken);
   return (
-    `Invoke-WebRequest -Uri "${base}/install.ps1" -OutFile install.ps1 -UseBasicParsing
-powershell -ExecutionPolicy Bypass -File .\\install.ps1 -ServerUrl ${su} -EnrollmentToken ${tok}`
+    `Invoke-WebRequest -Uri "${base}/install.ps1" -OutFile "$env:TEMP\\nexctl-install.ps1" -UseBasicParsing
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\\nexctl-install.ps1" -ServerUrl ${su} -EnrollmentToken ${tok}`
   );
 }

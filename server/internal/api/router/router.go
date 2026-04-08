@@ -54,17 +54,14 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 
 			protected.Get("/me", nodeHandler.CurrentUser)
 
-			protected.Group(func(nodeRoutes chi.Router) {
-				nodeRoutes.Use(authMiddleware.RequirePermission("nodes:read"))
-				nodeRoutes.Get("/nodes", nodeHandler.List)
-				nodeRoutes.Get("/nodes/{nodeID}", nodeHandler.Detail)
-			})
-
-			protected.Group(func(nodeWrite chi.Router) {
-				nodeWrite.Use(authMiddleware.RequirePermission("nodes:write"))
-				nodeWrite.Post("/nodes", nodeHandler.CreatePending)
-				nodeWrite.Post("/nodes/{nodeID}/runtime-state", nodeHandler.UpdateRuntimeState)
-				nodeWrite.Delete("/nodes/{nodeID}", nodeHandler.Delete)
+			// 所有 /nodes 路由挂在同一 Route 子树下，避免多个 Group 并列时 DELETE 未正确注册（表现为 404）。
+			protected.Route("/nodes", func(nr chi.Router) {
+				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/", nodeHandler.List)
+				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/{nodeID}", nodeHandler.Detail)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/", nodeHandler.CreatePending)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/enrollment-token", nodeHandler.RegenerateEnrollmentToken)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/runtime-state", nodeHandler.UpdateRuntimeState)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Delete("/{nodeID}", nodeHandler.Delete)
 			})
 
 			protected.Group(func(mod chi.Router) {

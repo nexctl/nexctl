@@ -258,6 +258,56 @@ func (s *Service) CreatePendingNode(ctx context.Context, req CreatePendingNodeRe
 	}, nil
 }
 
+// RegenerateEnrollmentToken issues a new enrollment token for a pending node (replaces the stored hash).
+func (s *Service) RegenerateEnrollmentToken(ctx context.Context, nodeID int64, actorUserID, actorUsername string) (*CreatePendingNodeResponse, *errcode.AppError) {
+	item, err := s.nodes.GetByID(ctx, nodeID)
+	if err != nil {
+		return nil, errcode.Wrap(errcode.Internal, "get node failed", err)
+	}
+	if item == nil {
+		return nil, errcode.New(errcode.NotFound, "node not found")
+	}
+	if item.Status != model.NodeStatusPending {
+		return nil, errcode.New(errcode.InvalidArgument, "only pending nodes can show install commands")
+	}
+
+	expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+	plainToken, err := randomHex(32)
+	if err != nil {
+		return nil, errcode.Wrap(errcode.Internal, "generate enrollment token failed", err)
+	}
+	tokenHash := hashEnrollmentToken(plainToken)
+
+	if err := s.nodes.SetPendingEnrollmentToken(ctx, nodeID, tokenHash, &expiresAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errcode.New(errcode.InvalidArgument, "only pending nodes can show install commands")
+		}
+		return nil, errcode.Wrap(errcode.Internal, "update enrollment token failed", err)
+	}
+
+	detailJSON := "{}"
+	if b, err := json.Marshal(map[string]string{"name": item.Name}); err == nil {
+		detailJSON = string(b)
+	}
+	_ = s.audit.Record(ctx, audit.RecordInput{
+		ActorType:    "user",
+		ActorID:      actorUserID,
+		ActorName:    actorUsername,
+		Action:       "node.regenerate_enrollment",
+		ResourceType: "node",
+		ResourceID:   strconv.FormatInt(nodeID, 10),
+		Detail:       detailJSON,
+	})
+
+	return &CreatePendingNodeResponse{
+		ID:                  nodeID,
+		Name:                item.Name,
+		Status:              model.NodeStatusPending,
+		EnrollmentToken:     plainToken,
+		EnrollmentExpiresAt: expiresAt.Format(time.RFC3339),
+	}, nil
+}
+
 func hashEnrollmentToken(plain string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(plain)))
 	return hex.EncodeToString(sum[:])
