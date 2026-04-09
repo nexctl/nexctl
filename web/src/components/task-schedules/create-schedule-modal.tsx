@@ -20,7 +20,7 @@ export function CreateScheduleModal({ open, onClose, onCreated }: Props) {
     name: string;
     cron_expr: string;
     task_type: string;
-    scope_value: number;
+    scope_value: number[];
     detail: string;
     enabled: boolean;
   }>();
@@ -51,7 +51,7 @@ export function CreateScheduleModal({ open, onClose, onCreated }: Props) {
       name: '',
       cron_expr: '0 * * * *',
       task_type: 'echo',
-      scope_value: undefined,
+      scope_value: [],
       detail: '',
       enabled: true,
     });
@@ -62,12 +62,13 @@ export function CreateScheduleModal({ open, onClose, onCreated }: Props) {
     try {
       const v = await form.validateFields();
       setSubmitting(true);
+      const ids = [...(v.scope_value ?? [])].sort((a, b) => a - b);
       await createTaskSchedule({
         name: v.name?.trim() ?? '',
         cron_expr: v.cron_expr.trim(),
         task_type: v.task_type,
         scope_type: 'node',
-        scope_value: String(v.scope_value),
+        scope_value: ids.map(String).join(','),
         detail: v.detail?.trim() ?? '',
         enabled: v.enabled,
       });
@@ -121,13 +122,19 @@ export function CreateScheduleModal({ open, onClose, onCreated }: Props) {
           </Form.Item>
           <Form.Item
             name="scope_value"
-            label={t('tasks.newTaskNode')}
-            rules={[{ required: true, message: t('tasks.newTaskNodeRequired') }]}
+            label={t('taskSchedules.nodesLabel')}
+            rules={[
+              { required: true, message: t('taskSchedules.nodesRequired') },
+              { type: 'array', min: 1, message: t('taskSchedules.nodesRequired') },
+            ]}
           >
             <Select
+              mode="multiple"
+              allowClear
               showSearch
               optionFilterProp="label"
-              placeholder={t('tasks.newTaskNodePlaceholder')}
+              placeholder={t('taskSchedules.nodesPlaceholder')}
+              maxTagCount="responsive"
               options={nodes.map((n) => ({
                 value: n.id,
                 label: `${n.name} (#${n.id})`,

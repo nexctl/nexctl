@@ -100,18 +100,20 @@ func (s *Service) CreateSchedule(ctx context.Context, req CreateScheduleRequest,
 	if req.TaskType == "shell_command" && req.Detail == "" {
 		return nil, errcode.New(errcode.InvalidArgument, "detail is required for shell_command")
 	}
-	nodeID, err := strconv.ParseInt(req.ScopeValue, 10, 64)
-	if err != nil || nodeID <= 0 {
-		return nil, errcode.New(errcode.InvalidArgument, "scope_value must be a positive node id")
-	}
-	nodeRow, err := s.nodes.GetByID(ctx, nodeID)
+	nodeIDs, err := parseScopeNodeIDs(req.ScopeValue)
 	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "load node failed", err)
+		return nil, errcode.New(errcode.InvalidArgument, "scope_value: "+err.Error())
 	}
-	if nodeRow == nil {
-		return nil, errcode.New(errcode.NotFound, "node not found")
+	for _, nid := range nodeIDs {
+		nodeRow, err := s.nodes.GetByID(ctx, nid)
+		if err != nil {
+			return nil, errcode.Wrap(errcode.Internal, "load node failed", err)
+		}
+		if nodeRow == nil {
+			return nil, errcode.New(errcode.NotFound, fmt.Sprintf("node %d not found", nid))
+		}
 	}
-	_ = nodeRow
+	normalizedScope := joinScopeNodeIDs(nodeIDs)
 
 	nextAt, err := parseCronNext(req.CronExpr, time.Now().UTC())
 	if err != nil {
@@ -123,7 +125,7 @@ func (s *Service) CreateSchedule(ctx context.Context, req CreateScheduleRequest,
 		CronExpr:     req.CronExpr,
 		TaskType:     req.TaskType,
 		ScopeType:    req.ScopeType,
-		ScopeValue:   req.ScopeValue,
+		ScopeValue:   normalizedScope,
 		Detail:       req.Detail,
 		Enabled:      enabled,
 		OperatorID:   operatorID,
@@ -146,7 +148,7 @@ func (s *Service) CreateSchedule(ctx context.Context, req CreateScheduleRequest,
 		Action:       "task_schedule.create",
 		ResourceType: "task_schedule",
 		ResourceID:   strconv.FormatInt(rec.ID, 10),
-		Detail:       req.CronExpr + " node=" + req.ScopeValue,
+		Detail:       req.CronExpr + " nodes=" + normalizedScope,
 	})
 
 	sch2, err := s.schedules.GetByID(ctx, rec.ID)
@@ -208,6 +210,9 @@ func formatScopeParts(scopeType, scopeValue string) string {
 	st := strings.TrimSpace(scopeType)
 	sv := strings.TrimSpace(scopeValue)
 	if st == "node" && sv != "" {
+		if strings.Contains(sv, ",") {
+			return "nodes:" + sv
+		}
 		return "node:" + sv
 	}
 	if sv == "" {
@@ -253,59 +258,66 @@ func (s *Service) Create(ctx context.Context, req CreateRequest, operatorID int6
 	if scopeType != "node" {
 		return nil, errcode.New(errcode.InvalidArgument, "scope_type must be node")
 	}
-	nodeID, err := strconv.ParseInt(scopeValue, 10, 64)
-	if err != nil || nodeID <= 0 {
-		return nil, errcode.New(errcode.InvalidArgument, "scope_value must be a positive node id")
-	}
-	nodeRow, err := s.nodes.GetByID(ctx, nodeID)
+	nodeIDs, err := parseScopeNodeIDs(scopeValue)
 	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "load node failed", err)
-	}
-	if nodeRow == nil {
-		return nil, errcode.New(errcode.NotFound, "node not found")
-	}
-	_ = nodeRow
-
-	rec := &model.ControlTask{
-		ScheduleID:   schedID,
-		TaskType:     taskType,
-		ScopeType:    scopeType,
-		ScopeValue:   scopeValue,
-		Status:       "pending",
-		Progress:     0,
-		OperatorID:   operatorID,
-		OperatorName: strings.TrimSpace(operatorName),
-		Detail:       detail,
-	}
-	if err := s.repo.Create(ctx, rec); err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "create task failed", err)
+		return nil, errcode.New(errcode.InvalidArgument, "scope_value: "+err.Error())
 	}
 
-	s.tryDispatch(ctx, rec, nodeID)
+	var last *DetailResponse
+	for _, nodeID := range nodeIDs {
+		nodeRow, err := s.nodes.GetByID(ctx, nodeID)
+		if err != nil {
+			return nil, errcode.Wrap(errcode.Internal, "load node failed", err)
+		}
+		if nodeRow == nil {
+			return nil, errcode.New(errcode.NotFound, fmt.Sprintf("node %d not found", nodeID))
+		}
+		sv := strconv.FormatInt(nodeID, 10)
+		rec := &model.ControlTask{
+			ScheduleID:   schedID,
+			TaskType:     taskType,
+			ScopeType:    scopeType,
+			ScopeValue:   sv,
+			Status:       "pending",
+			Progress:     0,
+			OperatorID:   operatorID,
+			OperatorName: strings.TrimSpace(operatorName),
+			Detail:       detail,
+		}
+		if err := s.repo.Create(ctx, rec); err != nil {
+			return nil, errcode.Wrap(errcode.Internal, "create task failed", err)
+		}
 
-	auditDetail := taskType + " scope=node:" + scopeValue
-	if schedID.Valid {
-		auditDetail += " schedule_id=" + strconv.FormatInt(schedID.Int64, 10)
-	}
-	_ = s.audit.Record(ctx, audit.RecordInput{
-		ActorType:    "user",
-		ActorID:      strconv.FormatInt(operatorID, 10),
-		ActorName:    operatorName,
-		Action:       "task.create",
-		ResourceType: "task",
-		ResourceID:   strconv.FormatInt(rec.ID, 10),
-		Detail:       auditDetail,
-	})
+		s.tryDispatch(ctx, rec, nodeID)
 
-	t2, err := s.repo.GetByID(ctx, rec.ID)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "reload task failed", err)
+		auditDetail := taskType + " scope=node:" + sv
+		if schedID.Valid {
+			auditDetail += " schedule_id=" + strconv.FormatInt(schedID.Int64, 10)
+		}
+		_ = s.audit.Record(ctx, audit.RecordInput{
+			ActorType:    "user",
+			ActorID:      strconv.FormatInt(operatorID, 10),
+			ActorName:    operatorName,
+			Action:       "task.create",
+			ResourceType: "task",
+			ResourceID:   strconv.FormatInt(rec.ID, 10),
+			Detail:       auditDetail,
+		})
+
+		t2, err := s.repo.GetByID(ctx, rec.ID)
+		if err != nil {
+			return nil, errcode.Wrap(errcode.Internal, "reload task failed", err)
+		}
+		if t2 == nil {
+			return nil, errcode.New(errcode.Internal, "task missing after create")
+		}
+		d := s.toDetail(t2)
+		last = &d
 	}
-	if t2 == nil {
-		return nil, errcode.New(errcode.Internal, "task missing after create")
+	if last == nil {
+		return nil, errcode.New(errcode.Internal, "no tasks created")
 	}
-	d := s.toDetail(t2)
-	return &d, nil
+	return last, nil
 }
 
 func (s *Service) tryDispatch(ctx context.Context, rec *model.ControlTask, nodeID int64) {

@@ -252,7 +252,10 @@
     "enabledOff": "Off",
     "cronHint": "Five fields: minute hour day month weekday. Example hourly on the hour: 0 * * * *",
     "cronRequired": "Enter a CRON expression",
-    "namePlaceholder": "Optional label"
+    "namePlaceholder": "Optional label",
+    "nodesLabel": "Target nodes",
+    "nodesPlaceholder": "Select one or more nodes; each run creates one execution per node",
+    "nodesRequired": "Select at least one node"
   },
   "files": {
     "headerTitle": "Files",
