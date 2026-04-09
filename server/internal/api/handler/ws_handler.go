@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nexctl/nexctl/server/internal/model"
 	"github.com/nexctl/nexctl/server/internal/node"
+	"github.com/nexctl/nexctl/server/internal/task"
 	"github.com/nexctl/nexctl/server/internal/ws"
 	"go.uber.org/zap"
 )
@@ -36,16 +37,18 @@ func websocketOriginAllowed(r *http.Request, allowedOrigins []string) bool {
 type WSHandler struct {
 	nodes    *node.Service
 	ws       *ws.Service
+	tasks    *task.Service
 	logger   *zap.Logger
 	upgrader websocket.Upgrader
 }
 
 // NewWSHandler creates a websocket handler.
-func NewWSHandler(nodes *node.Service, wsService *ws.Service, logger *zap.Logger, allowedOrigins []string) *WSHandler {
+func NewWSHandler(nodes *node.Service, wsService *ws.Service, taskService *task.Service, logger *zap.Logger, allowedOrigins []string) *WSHandler {
 	allowed := append([]string(nil), allowedOrigins...)
 	return &WSHandler{
 		nodes:  nodes,
 		ws:     wsService,
+		tasks:  taskService,
 		logger: logger,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -78,7 +81,7 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 
 	conn.SetReadLimit(1 << 20)
 
-	send, unregister := h.ws.AgentHub.Register(nodeRecord.ID)
+	send, unregister := h.ws.AgentHub.Register(nodeRecord.ID, conn)
 	defer unregister()
 	defer conn.Close()
 
@@ -101,21 +104,16 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 			h.handleAgentTerminalOutput(message)
 		case ws.MessageTypeTerminalExit:
 			h.handleAgentTerminalExit(message)
+		case ws.MessageTypeTaskReport:
+			h.handleAgentTaskReport(r, send, nodeRecord, message)
 		default:
-			enqueueAgentSend(send, ws.Message{
+			ws.EnqueueAgentSend(send, ws.Message{
 				Type:      ws.MessageTypeError,
 				RequestID: message.RequestID,
 				Timestamp: time.Now().UTC(),
 				Payload:   mustPayload(ws.ErrorPayload{MessageType: message.Type, Message: "unsupported message type"}),
 			})
 		}
-	}
-}
-
-func enqueueAgentSend(send chan<- ws.Message, msg ws.Message) {
-	select {
-	case send <- msg:
-	default:
 	}
 }
 
@@ -128,6 +126,34 @@ func (h *WSHandler) handleAgentTerminalOutput(message ws.Message) {
 		return
 	}
 	_ = h.ws.TerminalBridge.DispatchFromAgent(payload.SessionID, message)
+}
+
+func (h *WSHandler) handleAgentTaskReport(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {
+	var payload ws.TaskReportPayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		ws.EnqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeTaskReport, Message: "invalid task_report payload"}),
+		})
+		return
+	}
+	if appErr := h.tasks.ApplyAgentReport(r.Context(), nodeRecord.ID, payload); appErr != nil {
+		ws.EnqueueAgentSend(send, ws.Message{
+			Type:      ws.MessageTypeError,
+			RequestID: message.RequestID,
+			Timestamp: time.Now().UTC(),
+			Payload:   mustPayload(ws.ErrorPayload{MessageType: ws.MessageTypeTaskReport, Message: appErr.Message}),
+		})
+		return
+	}
+	ws.EnqueueAgentSend(send, ws.Message{
+		Type:      ws.MessageTypeAck,
+		RequestID: message.RequestID,
+		Timestamp: time.Now().UTC(),
+		Payload:   mustPayload(ws.AckPayload{MessageType: ws.MessageTypeTaskReport, Status: "ok"}),
+	})
 }
 
 func (h *WSHandler) handleAgentTerminalExit(message ws.Message) {
@@ -149,7 +175,7 @@ func (h *WSHandler) handleAgentTerminalExit(message ws.Message) {
 func (h *WSHandler) handleAgentHeartbeat(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {
 	var payload ws.HeartbeatPayload
 	if err := json.Unmarshal(message.Payload, &payload); err != nil {
-		enqueueAgentSend(send, ws.Message{
+		ws.EnqueueAgentSend(send, ws.Message{
 			Type:      ws.MessageTypeError,
 			RequestID: message.RequestID,
 			Timestamp: time.Now().UTC(),
@@ -158,7 +184,7 @@ func (h *WSHandler) handleAgentHeartbeat(r *http.Request, send chan<- ws.Message
 		return
 	}
 	if appErr := h.ws.HandleHeartbeat(r.Context(), nodeRecord, payload); appErr != nil {
-		enqueueAgentSend(send, ws.Message{
+		ws.EnqueueAgentSend(send, ws.Message{
 			Type:      ws.MessageTypeError,
 			RequestID: message.RequestID,
 			Timestamp: time.Now().UTC(),
@@ -166,7 +192,7 @@ func (h *WSHandler) handleAgentHeartbeat(r *http.Request, send chan<- ws.Message
 		})
 		return
 	}
-	enqueueAgentSend(send, ws.Message{
+	ws.EnqueueAgentSend(send, ws.Message{
 		Type:      ws.MessageTypeAck,
 		RequestID: message.RequestID,
 		Timestamp: time.Now().UTC(),
@@ -177,7 +203,7 @@ func (h *WSHandler) handleAgentHeartbeat(r *http.Request, send chan<- ws.Message
 func (h *WSHandler) handleAgentRuntimeState(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {
 	var payload ws.RuntimeStatePayload
 	if err := json.Unmarshal(message.Payload, &payload); err != nil {
-		enqueueAgentSend(send, ws.Message{
+		ws.EnqueueAgentSend(send, ws.Message{
 			Type:      ws.MessageTypeError,
 			RequestID: message.RequestID,
 			Timestamp: time.Now().UTC(),
@@ -186,7 +212,7 @@ func (h *WSHandler) handleAgentRuntimeState(r *http.Request, send chan<- ws.Mess
 		return
 	}
 	if appErr := h.ws.HandleRuntimeState(r.Context(), nodeRecord, payload); appErr != nil {
-		enqueueAgentSend(send, ws.Message{
+		ws.EnqueueAgentSend(send, ws.Message{
 			Type:      ws.MessageTypeError,
 			RequestID: message.RequestID,
 			Timestamp: time.Now().UTC(),
@@ -194,7 +220,7 @@ func (h *WSHandler) handleAgentRuntimeState(r *http.Request, send chan<- ws.Mess
 		})
 		return
 	}
-	enqueueAgentSend(send, ws.Message{
+	ws.EnqueueAgentSend(send, ws.Message{
 		Type:      ws.MessageTypeAck,
 		RequestID: message.RequestID,
 		Timestamp: time.Now().UTC(),

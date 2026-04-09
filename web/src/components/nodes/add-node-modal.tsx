@@ -1,6 +1,6 @@
 'use client';
 
-import { App, Button, Form, Input, InputNumber, Modal, Space } from 'antd';
+import { App, Button, Form, Input, Modal, Space } from 'antd';
 import { useState } from 'react';
 import { useT } from '@/i18n';
 import { createPendingNode } from '@/services/node';
@@ -17,14 +17,16 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
   const t = useT();
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [tokenResult, setTokenResult] = useState<{
-    token: string;
-    expiresAt?: string;
+  const [credResult, setCredResult] = useState<{
+    agentId: string;
+    agentSecret: string;
+    nodeKey: string;
     name: string;
+    nodeId: number;
   } | null>(null);
 
   const handleClose = () => {
-    setTokenResult(null);
+    setCredResult(null);
     form.resetFields();
     onClose();
   };
@@ -35,12 +37,13 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
     try {
       const res = await createPendingNode({
         name: values.name.trim(),
-        expires_in_hours: values.expires_in_hours ?? undefined,
       });
-      setTokenResult({
-        token: res.enrollment_token,
-        expiresAt: res.enrollment_expires_at,
+      setCredResult({
+        agentId: res.agent_id,
+        agentSecret: res.agent_secret,
+        nodeKey: res.node_key,
         name: res.name,
+        nodeId: res.id,
       });
       message.success(t('nodes.createSuccess'));
       onCreated?.();
@@ -53,11 +56,11 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
 
   return (
     <Modal
-      title={tokenResult ? t('nodes.modalTokenTitle') : t('nodes.modalAddTitle')}
+      title={credResult ? t('nodes.modalCredentialTitle') : t('nodes.modalAddTitle')}
       open={open}
       onCancel={handleClose}
       footer={
-        tokenResult ? (
+        credResult ? (
           <Button type="primary" onClick={handleClose}>
             {t('common.close')}
           </Button>
@@ -65,7 +68,7 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
           <Space>
             <Button onClick={handleClose}>{t('common.cancel')}</Button>
             <Button type="primary" loading={submitting} onClick={handleSubmit}>
-              {t('nodes.createToken')}
+              {t('nodes.createNode')}
             </Button>
           </Space>
         )
@@ -73,28 +76,22 @@ export function AddNodeModal({ open, onClose, onCreated }: Props) {
       destroyOnHidden
       width={720}
     >
-      {tokenResult ? (
+      {credResult ? (
         <EnrollmentDeployCommands
-          nodeName={tokenResult.name}
-          token={tokenResult.token}
-          expiresAt={tokenResult.expiresAt}
+          nodeName={credResult.name}
+          agentId={credResult.agentId}
+          agentSecret={credResult.agentSecret}
+          nodeKey={credResult.nodeKey}
+          nodeId={credResult.nodeId}
         />
       ) : (
-        <Form form={form} layout="vertical" initialValues={{ expires_in_hours: 168 }}>
+        <Form form={form} layout="vertical">
           <Form.Item
             label={t('nodes.fieldName')}
             name="name"
             rules={[{ required: true, message: t('nodes.nameRequired') }]}
           >
             <Input placeholder={t('nodes.namePlaceholder')} maxLength={128} showCount />
-          </Form.Item>
-          <Form.Item
-            label={t('nodes.fieldExpiresHours')}
-            name="expires_in_hours"
-            tooltip={t('nodes.expiresTooltip')}
-            rules={[{ required: true, message: t('nodes.hoursRequired') }]}
-          >
-            <InputNumber min={0} max={8760} style={{ width: '100%' }} placeholder={t('nodes.expiresPlaceholder')} />
           </Form.Item>
         </Form>
       )}

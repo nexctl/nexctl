@@ -3,7 +3,7 @@ package model
 import "time"
 
 const (
-	// NodeStatusPending means the node was pre-created in console and awaits enrollment_token from agent.
+	// NodeStatusPending means the node was created in console and awaits the first Agent connection.
 	NodeStatusPending = "pending"
 	// NodeStatusOnline means the node session is healthy.
 	NodeStatusOnline = "online"

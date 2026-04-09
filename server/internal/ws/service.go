@@ -26,6 +26,7 @@ const (
 	MessageTypeError = "error"
 	// MessageTypeTaskDispatch is reserved for future task dispatch.
 	MessageTypeTaskDispatch = "task_dispatch"
+	MessageTypeTaskReport   = "task_report"
 	// MessageTypeFileDispatch is reserved for future file operations.
 	MessageTypeFileDispatch = "file_dispatch"
 	MessageTypeUpgradeCommand = "upgrade_command"
@@ -85,6 +86,21 @@ type TerminalErrorPayload struct {
 // UpgradeCommandPayload 控制面 -> Agent：触发一次 GitHub Release 自更新检查。
 type UpgradeCommandPayload struct {
 	Source string `json:"source,omitempty"` // 例如 console
+}
+
+// TaskDispatchPayload 控制面 -> Agent：下发任务执行。
+type TaskDispatchPayload struct {
+	TaskID   int64  `json:"task_id"`
+	TaskType string `json:"task_type"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+// TaskReportPayload Agent -> 控制面：任务执行结果。
+type TaskReportPayload struct {
+	TaskID   int64  `json:"task_id"`
+	Status   string `json:"status"` // running | success | failed
+	Progress int    `json:"progress"`
+	Output   string `json:"output,omitempty"`
 }
 
 // Message is the base websocket envelope.

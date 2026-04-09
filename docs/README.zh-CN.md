@@ -95,11 +95,11 @@ http://localhost:8080/api/v1
 ### 已统一的核心接口
 
 - `POST /api/v1/auth/login`
-- `POST /api/v1/agents/register`
 - `GET /api/v1/agents/ws`
 - `GET /api/v1/me`
 - `GET /api/v1/nodes`
 - `GET /api/v1/nodes/{nodeID}`
+- `GET /api/v1/nodes/{nodeID}/agent-credentials`
 - `POST /api/v1/nodes/{nodeID}/runtime-state`
 - `GET /api/v1/tasks`
 - `GET /api/v1/files`
@@ -236,14 +236,13 @@ pnpm dev
 先确认 `agent/configs/agent.example.yaml` 中：
 
 - `server_url` 指向 `http://localhost:8080`
-- `register_path` 为 `/api/v1/agents/register`
-- `install_token` 为有效 token
+- 在 Web 控制台「添加节点」后填入 `agent_id`、`agent_secret`、`node_key`
 
 然后运行：
 
 ```bash
 cd agent
-go run ./cmd/agentd -config configs/agent.example.yaml
+go run ./cmd/agent -config configs/agent.example.yaml
 ```
 
 ### 5. 启动 supervisor

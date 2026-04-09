@@ -53,7 +53,6 @@ func New(ctx context.Context, configPath string) (*App, error) {
 	}
 
 	userRepo := repository.NewUserRepository(db)
-	installTokenRepo := repository.NewInstallTokenRepository(db)
 	nodeRepo := repository.NewNodeRepository(db)
 	runtimeRepo := repository.NewRuntimeStateRepository(db, rdb, cfg.Node.RuntimePointsTTLSeconds, cfg.Node.RuntimePointsMaxCount)
 	auditRepo := repository.NewAuditRepository(db)
@@ -62,12 +61,14 @@ func New(ctx context.Context, configPath string) (*App, error) {
 	auditService := audit.NewService(auditRepo, logger)
 	authService := auth.NewService(cfg.Auth, userRepo, auditService)
 	runtimeService := runtime.NewService(runtimeRepo, nodeRepo)
-	nodeService := node.NewService(cfg.Node, installTokenRepo, nodeRepo, runtimeRepo, auditService, cfg.App.ExternalURL)
-	taskService := task.NewService()
+	nodeService := node.NewService(cfg.Node, nodeRepo, runtimeRepo, auditService, cfg.App.ExternalURL)
 	fileService := filemgr.NewService()
 	upgradeService := upgrade.NewService()
 	alertService := alert.NewService()
 	wsService := ws.NewService(cfg.Node, nodeRepo, runtimeService, sessionCache, auditService, logger)
+	taskRepo := repository.NewTaskRepository(db)
+	scheduleRepo := repository.NewScheduleRepository(db)
+	taskService := task.NewService(taskRepo, scheduleRepo, nodeRepo, wsService, auditService, logger)
 
 	httpServer := &http.Server{
 		Addr:              cfg.App.ListenAddr,

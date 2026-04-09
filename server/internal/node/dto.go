@@ -2,41 +2,27 @@ package node
 
 import "github.com/nexctl/nexctl/server/internal/model"
 
-// RegisterRequest is the node registration request body.
-type RegisterRequest struct {
-	InstallToken     string `json:"install_token,omitempty"`
-	EnrollmentToken  string `json:"enrollment_token,omitempty"`
-	NodeKey          string `json:"node_key"`
-	Name             string `json:"name"`
-	Hostname        string `json:"hostname"`
-	Platform        string `json:"platform"`
-	PlatformVersion string `json:"platform_version"`
-	Arch            string `json:"arch"`
-	PrivateIP       string `json:"private_ip,omitempty"`
-	PublicIP        string `json:"public_ip,omitempty"`
-	AgentVersion    string `json:"agent_version"`
-}
-
 // CreatePendingNodeRequest is the console "add node" body.
 type CreatePendingNodeRequest struct {
-	Name            string `json:"name"`
-	ExpiresInHours  int    `json:"expires_in_hours"`
+	Name string `json:"name"`
 }
 
-// CreatePendingNodeResponse returns the one-time enrollment token for agent bootstrap.
+// CreatePendingNodeResponse returns fixed agent credentials for the new node (一次性展示，用于安装 Agent)。
 type CreatePendingNodeResponse struct {
-	ID                  int64  `json:"id"`
-	Name                string `json:"name"`
-	Status              string `json:"status"`
-	EnrollmentToken     string `json:"enrollment_token"`
-	EnrollmentExpiresAt string `json:"enrollment_expires_at,omitempty"`
-}
-
-// RegisterResponse is the node registration response body.
-type RegisterResponse struct {
-	NodeID      int64  `json:"node_id"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"`
 	AgentID     string `json:"agent_id"`
 	AgentSecret string `json:"agent_secret"`
+	NodeKey     string `json:"node_key"`
+	WSURL       string `json:"ws_url"`
+}
+
+// AgentCredentialsResponse 用于已创建节点的凭据查询（需登录，供「安装」弹窗使用）。
+type AgentCredentialsResponse struct {
+	AgentID     string `json:"agent_id"`
+	AgentSecret string `json:"agent_secret"`
+	NodeKey     string `json:"node_key"`
 	WSURL       string `json:"ws_url"`
 }
 

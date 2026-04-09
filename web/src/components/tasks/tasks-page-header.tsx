@@ -3,7 +3,7 @@
 import { Button, Card, Space, Typography } from 'antd';
 import { useT } from '@/i18n';
 
-export function TasksPageHeader() {
+export function TasksPageHeader({ onNewTask }: { onNewTask?: () => void }) {
   const t = useT();
   return (
     <Card className="page-card">
@@ -14,7 +14,9 @@ export function TasksPageHeader() {
           </Typography.Title>
           <Typography.Text type="secondary">{t('tasks.headerDesc')}</Typography.Text>
         </div>
-        <Button type="primary">{t('tasks.newTask')}</Button>
+        <Button type="primary" onClick={() => onNewTask?.()}>
+          {t('tasks.newTask')}
+        </Button>
       </Space>
     </Card>
   );

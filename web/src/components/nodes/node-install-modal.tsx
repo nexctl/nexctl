@@ -3,7 +3,7 @@
 import { Alert, Modal, Spin } from 'antd';
 import { useEffect, useState } from 'react';
 import { useT } from '@/i18n';
-import { issueNodeEnrollmentToken } from '@/services/node';
+import { getNodeAgentCredentials } from '@/services/node';
 import type { NodeItem } from '@/types/node';
 import { EnrollmentDeployCommands } from '@/components/nodes/enrollment-deploy-commands';
 
@@ -17,9 +17,10 @@ export function NodeInstallModal({ open, onClose, node }: Props) {
   const t = useT();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tokenResult, setTokenResult] = useState<{
-    token: string;
-    expiresAt?: string;
+  const [credResult, setCredResult] = useState<{
+    agentId: string;
+    agentSecret: string;
+    nodeKey: string;
     name: string;
   } | null>(null);
 
@@ -28,21 +29,22 @@ export function NodeInstallModal({ open, onClose, node }: Props) {
       return;
     }
     setError(null);
-    setTokenResult(null);
+    setCredResult(null);
     if (node.status !== 'pending') {
       return;
     }
     setLoading(true);
-    void issueNodeEnrollmentToken(node.id)
+    void getNodeAgentCredentials(node.id)
       .then((res) => {
-        setTokenResult({
-          token: res.enrollment_token,
-          expiresAt: res.enrollment_expires_at,
-          name: res.name,
+        setCredResult({
+          agentId: res.agent_id,
+          agentSecret: res.agent_secret,
+          nodeKey: res.node_key,
+          name: node.name,
         });
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : t('nodes.issueTokenFailed'));
+        setError(e instanceof Error ? e.message : t('nodes.fetchCredentialsFailed'));
       })
       .finally(() => {
         setLoading(false);
@@ -50,7 +52,7 @@ export function NodeInstallModal({ open, onClose, node }: Props) {
   }, [open, node, t]);
 
   const handleClose = () => {
-    setTokenResult(null);
+    setCredResult(null);
     setError(null);
     onClose();
   };
@@ -71,12 +73,14 @@ export function NodeInstallModal({ open, onClose, node }: Props) {
           <Spin description={t('nodes.installLoading')} />
         </div>
       ) : error ? (
-        <Alert type="error" showIcon title={t('nodes.issueTokenFailed')} description={error} />
-      ) : tokenResult ? (
+        <Alert type="error" showIcon title={t('nodes.fetchCredentialsFailed')} description={error} />
+      ) : credResult ? (
         <EnrollmentDeployCommands
-          nodeName={tokenResult.name}
-          token={tokenResult.token}
-          expiresAt={tokenResult.expiresAt}
+          nodeName={credResult.name}
+          agentId={credResult.agentId}
+          agentSecret={credResult.agentSecret}
+          nodeKey={credResult.nodeKey}
+          nodeId={typeof node.id === 'number' ? node.id : Number(node.id)}
         />
       ) : null}
     </Modal>

@@ -2,6 +2,8 @@ export type TaskStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancell
 
 export interface TaskItem {
   id: number;
+  /** 非空表示由计划任务触发的执行实例 */
+  schedule_id?: number;
   type: string;
   scope: string;
   status: TaskStatus;

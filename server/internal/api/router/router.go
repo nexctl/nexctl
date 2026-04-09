@@ -29,7 +29,7 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 	nodeHandler := handler.NewNodeHandler(nodeService, runtimeService, wsService)
 	healthHandler := handler.NewHealthHandler(db, rdb)
 	moduleHandler := handler.NewModuleHandler(taskService, fileService, upgradeService, alertService, auditService)
-	wsHandler := handler.NewWSHandler(nodeService, wsService, logger, cfg.App.WebSocketAllowedOrigins)
+	wsHandler := handler.NewWSHandler(nodeService, wsService, taskService, logger, cfg.App.WebSocketAllowedOrigins)
 	terminalWSHandler := handler.NewTerminalWSHandler(cfg.Auth, wsService, logger, cfg.App.WebSocketAllowedOrigins)
 
 	authMiddleware := apimiddleware.NewAuthMiddleware(cfg.Auth)
@@ -45,9 +45,7 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 
 	r.Route("/api/v1", func(api chi.Router) {
 		loginRL := apimiddleware.RateLimitFunc(60*time.Second/20, 8, 4096)
-		registerRL := apimiddleware.RateLimitFunc(60*time.Second/40, 15, 4096)
 		api.Post("/auth/login", loginRL(authHandler.Login))
-		api.Post("/agents/register", registerRL(nodeHandler.Register))
 		api.Get("/agents/ws", wsHandler.AgentConnect)
 		api.Get("/nodes/{nodeID}/terminal/ws", terminalWSHandler.ServeWS)
 
@@ -62,15 +60,25 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/", nodeHandler.List)
 				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/{nodeID}", nodeHandler.Detail)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/", nodeHandler.CreatePending)
-				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/enrollment-token", nodeHandler.RegenerateEnrollmentToken)
+				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/{nodeID}/agent-credentials", nodeHandler.AgentCredentials)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/upgrade-agent", nodeHandler.TriggerAgentUpgrade)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/runtime-state", nodeHandler.UpdateRuntimeState)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Delete("/{nodeID}", nodeHandler.Delete)
 			})
 
+			protected.Route("/task-schedules", func(sr chi.Router) {
+				sr.With(authMiddleware.RequirePermission("modules:read")).Get("/", moduleHandler.ListTaskSchedules)
+				sr.With(authMiddleware.RequirePermission("modules:write")).Post("/", moduleHandler.CreateTaskSchedule)
+			})
+
+			protected.Route("/tasks", func(tr chi.Router) {
+				tr.With(authMiddleware.RequirePermission("modules:read")).Get("/", moduleHandler.ListTasks)
+				tr.With(authMiddleware.RequirePermission("modules:write")).Post("/", moduleHandler.CreateTask)
+				tr.With(authMiddleware.RequirePermission("modules:read")).Get("/{taskID}", moduleHandler.GetTask)
+			})
+
 			protected.Group(func(mod chi.Router) {
 				mod.Use(authMiddleware.RequirePermission("modules:read"))
-				mod.Get("/tasks", moduleHandler.ListTasks)
 				mod.Get("/files", moduleHandler.ListFiles)
 				mod.Get("/upgrades/releases", moduleHandler.ListReleases)
 				mod.Get("/alerts/rules", moduleHandler.ListAlertRules)

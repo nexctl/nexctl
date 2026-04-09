@@ -1,6 +1,6 @@
 # NexCtl Server
 
-NexCtl Server 是控制面服务端，负责登录、节点注册、当前状态接收、Agent WebSocket 接入、在线状态管理，以及 task/file/upgrade/alert/audit 模块的统一接口预留。
+NexCtl Server 是控制面服务端，负责登录、节点纳管（控制台创建节点并下发固定凭据）、当前状态接收、Agent WebSocket 接入、在线状态管理，以及 task/file/upgrade/alert/audit 模块的统一接口预留。
 
 ## Run
 
@@ -43,17 +43,17 @@ go run ./cmd/server -config configs/config.example.yaml
 
 - 用户名：`admin`
 - 密码：`admin123`
-- install token：`install-token-demo`
+- 在 Web 控制台「添加节点」可获取 `agent_id` / `agent_secret` / `node_key` 用于 Agent 配置
 
 ## API Paths
 
 - `GET /healthz`
 - `POST /api/v1/auth/login`
-- `POST /api/v1/agents/register`
 - `GET /api/v1/agents/ws`（鉴权：`X-NexCtl-Agent-Id`、`X-NexCtl-Agent-Secret` 请求头，勿使用 URL query）
 - `GET /api/v1/me`
 - `GET /api/v1/nodes`
 - `GET /api/v1/nodes/{nodeID}`
+- `GET /api/v1/nodes/{nodeID}/agent-credentials`
 - `POST /api/v1/nodes/{nodeID}/runtime-state`
 - `GET /api/v1/tasks`
 - `GET /api/v1/files`

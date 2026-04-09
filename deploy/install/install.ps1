@@ -5,7 +5,7 @@
   TLS 1.2、地域镜像、GitHub API 解析版本、下载重试、重装前清理。
 
 .EXAMPLE
-  .\install.ps1 -ServerUrl "http://控制面:8080" -EnrollmentToken "节点令牌"
+  .\install.ps1 -ServerUrl "http://控制面:8080" -AgentId "..." -AgentSecret "..." -NodeKey "..."
 
 .EXAMPLE
   .\install.ps1 -Uninstall
@@ -24,9 +24,18 @@ param(
   [string] $ServerUrl,
 
   [Parameter(ParameterSetName = 'Install', Mandatory = $true, Position = 1)]
-  [string] $EnrollmentToken,
+  [string] $AgentId,
 
-  [Parameter(ParameterSetName = 'Install', Mandatory = $false, Position = 2)]
+  [Parameter(ParameterSetName = 'Install', Mandatory = $true, Position = 2)]
+  [string] $AgentSecret,
+
+  [Parameter(ParameterSetName = 'Install', Mandatory = $true, Position = 3)]
+  [string] $NodeKey,
+
+  [Parameter(ParameterSetName = 'Install', Mandatory = $false)]
+  [string] $NodeId = '',
+
+  [Parameter(ParameterSetName = 'Install', Mandatory = $false, Position = 4)]
   [string] $ReleaseTag = '',
 
   [Parameter(ParameterSetName = 'Uninstall', Mandatory = $true)]
@@ -183,8 +192,13 @@ if (-not (Test-Administrator)) {
     $argList = @(
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptPath,
       '-ServerUrl', $ServerUrl,
-      '-EnrollmentToken', $EnrollmentToken
+      '-AgentId', $AgentId,
+      '-AgentSecret', $AgentSecret,
+      '-NodeKey', $NodeKey
     )
+    if (-not [string]::IsNullOrWhiteSpace($NodeId)) {
+      $argList += @('-NodeId', $NodeId)
+    }
     if (-not [string]::IsNullOrWhiteSpace($ReleaseTag)) {
       $argList += @('-ReleaseTag', $ReleaseTag)
     }
@@ -307,11 +321,17 @@ try {
   $CredDirFwd = ($DataRoot + '\data\credentials').Replace('\', '/')
   $LogDirFwd = ($DataRoot + '\data\logs').Replace('\', '/')
 
+  $nodeIdLine = ''
+  if (-not [string]::IsNullOrWhiteSpace($NodeId)) {
+    $nodeIdLine = "  node_id: $NodeId`n"
+  }
   $yaml = @"
 agent:
   server_url: "$(Escape-YamlDouble $ServerUrl)"
-  enrollment_token: "$(Escape-YamlDouble $EnrollmentToken)"
-  node_name: "$(Escape-YamlDouble $NodeName)"
+  agent_id: "$(Escape-YamlDouble $AgentId)"
+  agent_secret: "$(Escape-YamlDouble $AgentSecret)"
+  node_key: "$(Escape-YamlDouble $NodeKey)"
+$nodeIdLine  node_name: "$(Escape-YamlDouble $NodeName)"
   data_dir: "$DataDirFwd"
   config_dir: "$CfgDirFwd"
   credential_dir: "$CredDirFwd"

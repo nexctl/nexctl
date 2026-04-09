@@ -14,24 +14,34 @@ export async function deleteNode(id: number | string) {
   await apiRequest<{ deleted: boolean }>(`/nodes/${id}`, { method: 'DELETE' });
 }
 
+/** 控制台创建节点后返回的固定凭据（与数据库中一致）。 */
 export type CreatePendingNodeResult = {
   id: number;
   name: string;
   status: string;
-  enrollment_token: string;
-  enrollment_expires_at?: string;
+  agent_id: string;
+  agent_secret: string;
+  node_key: string;
+  ws_url: string;
 };
 
-export async function createPendingNode(body: { name: string; expires_in_hours?: number }) {
+export async function createPendingNode(body: { name: string }) {
   return apiRequest<CreatePendingNodeResult>('/nodes', {
     method: 'POST',
     body: JSON.stringify(body),
   });
 }
 
-/** 为待注册节点重新签发注册令牌并返回（用于列表「安装」等场景；会作废此前未使用的旧令牌哈希） */
-export function issueNodeEnrollmentToken(id: number | string) {
-  return apiRequest<CreatePendingNodeResult>(`/nodes/${id}/enrollment-token`, { method: 'POST' });
+/** 查询节点固定接入凭据（需登录；用于「安装」弹窗）。 */
+export type NodeAgentCredentials = {
+  agent_id: string;
+  agent_secret: string;
+  node_key: string;
+  ws_url: string;
+};
+
+export function getNodeAgentCredentials(id: number | string) {
+  return apiRequest<NodeAgentCredentials>(`/nodes/${id}/agent-credentials`);
 }
 
 export type TriggerAgentUpgradeResult = {

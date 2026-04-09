@@ -18,15 +18,9 @@ function stripTrailingSlash(s: string): string {
 }
 
 /**
- * Agent 注册使用的控制面 HTTP 根地址（无 /api/v1 后缀），与 agent.yaml 的 server_url 一致。
- *
- * 优先级：
- * 1. NEXT_PUBLIC_AGENT_SERVER_URL（构建/运行时在 .env 中配置）
- * 2. 浏览器：常见「控制台 :3000、API :8080 同主机」→ 用当前 hostname + 8080（局域网访问控制台时避免错用 3000）
- * 3. NEXT_PUBLIC_INTERNAL_API_ORIGIN（next.config 由 INTERNAL_API_BASE_URL 注入，与 rewrites 同源）
- * 4. NEXT_PUBLIC_API_BASE_URL 为绝对 URL 时取其 origin
- * 5. localhost:3000 → http://127.0.0.1:8080
- * 6. window.location.origin
+ * Agent 的 server_url（无 /api/v1 后缀）。
+ * 浏览器内默认使用当前控制台页面的 origin（与地址栏同源，即前端域名）；经反向代理或 Next rewrites 时 Agent 与浏览器访问同一入口。
+ * 构建时可设 NEXT_PUBLIC_AGENT_SERVER_URL 覆盖；无 window 时（SSR）回退到内部 API origin。
  */
 export function resolveAgentServerUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_AGENT_SERVER_URL?.trim();
@@ -35,10 +29,7 @@ export function resolveAgentServerUrl(): string {
   }
 
   if (typeof window !== 'undefined') {
-    const { protocol, hostname, port } = window.location;
-    if (port === '3000' && hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return stripTrailingSlash(`${protocol}//${hostname}:8080`);
-    }
+    return stripTrailingSlash(window.location.origin);
   }
 
   const fromInternal = process.env.NEXT_PUBLIC_INTERNAL_API_ORIGIN?.trim();
@@ -49,22 +40,10 @@ export function resolveAgentServerUrl(): string {
   const api = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api/v1';
   if (api.startsWith('http://') || api.startsWith('https://')) {
     try {
-      const u = new URL(api);
-      return u.origin;
+      return stripTrailingSlash(new URL(api).origin);
     } catch {
       /* fall through */
     }
-  }
-
-  if (typeof window !== 'undefined') {
-    const { protocol, hostname, port } = window.location;
-    if (
-      (hostname === 'localhost' || hostname === '127.0.0.1') &&
-      (port === '3000' || port === '')
-    ) {
-      return 'http://127.0.0.1:8080';
-    }
-    return window.location.origin;
   }
 
   return 'http://127.0.0.1:8080';
@@ -80,20 +59,40 @@ export function escapePowerShellSingleQuoted(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
 }
 
-export function buildLinuxInstallCommand(serverUrl: string, enrollmentToken: string): string {
+export function buildLinuxInstallCommand(
+  serverUrl: string,
+  agentId: string,
+  agentSecret: string,
+  nodeKey: string,
+  nodeId?: number,
+): string {
   const base = getInstallScriptBaseUrl();
   const url = escapeBashSingleQuoted(serverUrl);
-  const tok = escapeBashSingleQuoted(enrollmentToken);
-  return `curl -fsSL ${base}/install.sh | sh -s -- ${url} ${tok}`;
+  const id = escapeBashSingleQuoted(agentId);
+  const sec = escapeBashSingleQuoted(agentSecret);
+  const nk = escapeBashSingleQuoted(nodeKey);
+  const nid =
+    nodeId != null && !Number.isNaN(nodeId) ? escapeBashSingleQuoted(String(nodeId)) : escapeBashSingleQuoted('');
+  return `curl -fsSL ${base}/install.sh | sh -s -- ${url} ${id} ${sec} ${nk} ${nid}`;
 }
 
 /** Windows：下载到用户可写目录（%TEMP%），避免在 C:\\ 等根目录写入 install.ps1 遭拒绝 */
-export function buildWindowsInstallLines(serverUrl: string, enrollmentToken: string): string {
+export function buildWindowsInstallLines(
+  serverUrl: string,
+  agentId: string,
+  agentSecret: string,
+  nodeKey: string,
+  nodeId?: number,
+): string {
   const base = getInstallScriptBaseUrl();
   const su = escapePowerShellSingleQuoted(serverUrl);
-  const tok = escapePowerShellSingleQuoted(enrollmentToken);
+  const id = escapePowerShellSingleQuoted(agentId);
+  const sec = escapePowerShellSingleQuoted(agentSecret);
+  const nk = escapePowerShellSingleQuoted(nodeKey);
+  const nidArg =
+    nodeId != null && !Number.isNaN(nodeId) ? ` -NodeId ${escapePowerShellSingleQuoted(String(nodeId))}` : '';
   return (
     `Invoke-WebRequest -Uri "${base}/install.ps1" -OutFile "$env:TEMP\\nexctl-install.ps1" -UseBasicParsing
-powershell -ExecutionPolicy Bypass -File "$env:TEMP\\nexctl-install.ps1" -ServerUrl ${su} -EnrollmentToken ${tok}`
+powershell -ExecutionPolicy Bypass -File "$env:TEMP\\nexctl-install.ps1" -ServerUrl ${su} -AgentId ${id} -AgentSecret ${sec} -NodeKey ${nk}${nidArg}`
   );
 }

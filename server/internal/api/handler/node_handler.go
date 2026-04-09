@@ -28,27 +28,7 @@ func NewNodeHandler(nodes *node.Service, runtime *runtime.Service, wsSvc *ws.Ser
 	return &NodeHandler{nodes: nodes, runtime: runtime, wsSvc: wsSvc}
 }
 
-// Register handles node registration.
-func (h *NodeHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req node.RegisterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.WriteError(w, http.StatusBadRequest, errcode.InvalidArgument, "invalid request body")
-		return
-	}
-
-	resp, appErr := h.nodes.Register(r.Context(), req)
-	if appErr != nil {
-		status := http.StatusBadRequest
-		if appErr.Code == errcode.Internal {
-			status = http.StatusInternalServerError
-		}
-		response.WriteError(w, status, appErr.Code, appErr.Message)
-		return
-	}
-	response.WriteCreated(w, resp)
-}
-
-// CreatePending pre-creates a node and returns an enrollment token for agent bootstrap.
+// CreatePending 创建节点并返回固定的 agent_id / agent_secret / node_key。
 func (h *NodeHandler) CreatePending(w http.ResponseWriter, r *http.Request) {
 	var req node.CreatePendingNodeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -105,29 +85,19 @@ func (h *NodeHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	response.WriteOK(w, resp)
 }
 
-// RegenerateEnrollmentToken issues a new enrollment token for a pending node so the console can show install commands.
-func (h *NodeHandler) RegenerateEnrollmentToken(w http.ResponseWriter, r *http.Request) {
+// AgentCredentials 返回节点的固定接入凭据（用于控制台展示安装命令）。
+func (h *NodeHandler) AgentCredentials(w http.ResponseWriter, r *http.Request) {
 	nodeID, err := strconv.ParseInt(chi.URLParam(r, "nodeID"), 10, 64)
 	if err != nil {
 		response.WriteError(w, http.StatusBadRequest, errcode.InvalidArgument, "invalid node id")
 		return
 	}
 
-	claims, ok := middleware.UserClaimsFromContext(r.Context())
-	actorID, actorName := "", ""
-	if ok {
-		actorID = strconv.FormatInt(claims.UserID, 10)
-		actorName = claims.Username
-	}
-
-	resp, appErr := h.nodes.RegenerateEnrollmentToken(r.Context(), nodeID, actorID, actorName)
+	resp, appErr := h.nodes.GetNodeAgentCredentials(r.Context(), nodeID)
 	if appErr != nil {
 		status := http.StatusInternalServerError
-		switch appErr.Code {
-		case errcode.NotFound:
+		if appErr.Code == errcode.NotFound {
 			status = http.StatusNotFound
-		case errcode.InvalidArgument:
-			status = http.StatusBadRequest
 		}
 		response.WriteError(w, status, appErr.Code, appErr.Message)
 		return

@@ -241,7 +241,7 @@ export function NodeTerminalModal({ open, onClose, nodeId, nodeName }: NodeTermi
       onCancel={handleClose}
       footer={null}
       width="min(960px, 96vw)"
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 0 } }}
     >
       {!user?.token ? (

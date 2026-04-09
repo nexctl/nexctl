@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -20,206 +19,51 @@ import (
 	"github.com/nexctl/nexctl/server/pkg/errcode"
 )
 
-// Service implements node registration and query business logic.
+// Service implements node provisioning and query business logic.
 type Service struct {
-	cfg           config.NodeConfig
-	installTokens repository.InstallTokenRepository
-	nodes         repository.NodeRepository
-	runtime       repository.RuntimeStateRepository
-	audit         *audit.Service
-	externalURL   string
+	cfg         config.NodeConfig
+	nodes       repository.NodeRepository
+	runtime     repository.RuntimeStateRepository
+	audit       *audit.Service
+	externalURL string
 }
 
 // NewService creates a node service.
-func NewService(cfg config.NodeConfig, installTokens repository.InstallTokenRepository, nodes repository.NodeRepository, runtime repository.RuntimeStateRepository, audit *audit.Service, externalURL string) *Service {
+func NewService(cfg config.NodeConfig, nodes repository.NodeRepository, runtime repository.RuntimeStateRepository, audit *audit.Service, externalURL string) *Service {
 	return &Service{
-		cfg:           cfg,
-		installTokens: installTokens,
-		nodes:         nodes,
-		runtime:       runtime,
-		audit:         audit,
-		externalURL:   strings.TrimRight(externalURL, "/"),
+		cfg:         cfg,
+		nodes:       nodes,
+		runtime:     runtime,
+		audit:       audit,
+		externalURL: strings.TrimRight(externalURL, "/"),
 	}
 }
 
-// Register creates or completes node registration: enrollment_token (console pre-created node) or install_token (legacy).
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*RegisterResponse, *errcode.AppError) {
-	if strings.TrimSpace(req.EnrollmentToken) != "" {
-		return s.registerWithEnrollment(ctx, req)
-	}
-	return s.registerWithInstallToken(ctx, req)
-}
-
-func (s *Service) registerWithInstallToken(ctx context.Context, req RegisterRequest) (*RegisterResponse, *errcode.AppError) {
-	if strings.TrimSpace(req.InstallToken) == "" || strings.TrimSpace(req.NodeKey) == "" {
-		return nil, errcode.New(errcode.InvalidArgument, "install_token and node_key are required")
-	}
-
-	token, err := s.installTokens.FindByToken(ctx, req.InstallToken)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "query install token failed", err)
-	}
-	if !repository.IsUsable(token, time.Now().UTC()) {
-		return nil, errcode.New(errcode.InstallTokenInvalid, "install token is invalid")
-	}
-
-	agentID, err := randomHex(12)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate agent_id failed", err)
-	}
-	agentSecret, err := randomHex(24)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate agent_secret failed", err)
-	}
-
-	now := time.Now().UTC()
-	record := &model.Node{
-		AgentID:         agentID,
-		AgentSecret:     agentSecret,
-		NodeKey:         req.NodeKey,
-		Name:            req.Name,
-		Hostname:        req.Hostname,
-		Platform:        req.Platform,
-		PlatformVersion: req.PlatformVersion,
-		Arch:            req.Arch,
-		AgentVersion:    req.AgentVersion,
-		Status:          model.NodeStatusOnline,
-		LastHeartbeatAt: now,
-		LastOnlineAt:    now,
-	}
-
-	if err := s.nodes.Create(ctx, record); err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "create node failed", err)
-	}
-	if err := s.installTokens.IncrementUsedCount(ctx, token.ID); err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "update install token failed", err)
-	}
-
-	detailJSON := "{}"
-	if b, err := json.Marshal(map[string]string{"node_key": record.NodeKey}); err == nil {
-		detailJSON = string(b)
-	}
-	_ = s.audit.Record(ctx, audit.RecordInput{
-		ActorType:    "agent",
-		ActorID:      record.AgentID,
-		ActorName:    record.Name,
-		Action:       "node.register",
-		ResourceType: "node",
-		ResourceID:   strconv.FormatInt(record.ID, 10),
-		Detail:       detailJSON,
-	})
-
-	return &RegisterResponse{
-		NodeID:      record.ID,
-		AgentID:     record.AgentID,
-		AgentSecret: record.AgentSecret,
-		WSURL:       fmt.Sprintf("%s/api/v1/agents/ws", s.externalURL),
-	}, nil
-}
-
-func (s *Service) registerWithEnrollment(ctx context.Context, req RegisterRequest) (*RegisterResponse, *errcode.AppError) {
-	if strings.TrimSpace(req.NodeKey) == "" {
-		return nil, errcode.New(errcode.InvalidArgument, "node_key is required")
-	}
-
-	hash := hashEnrollmentToken(req.EnrollmentToken)
-	row, err := s.nodes.GetByEnrollmentTokenHash(ctx, hash)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "query enrollment node failed", err)
-	}
-	if row == nil || row.Status != model.NodeStatusPending || strings.TrimSpace(row.EnrollmentTokenHash) == "" {
-		return nil, errcode.New(errcode.EnrollmentTokenInvalid, "enrollment token is invalid or expired")
-	}
-
-	agentID, err := randomHex(12)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate agent_id failed", err)
-	}
-	agentSecret, err := randomHex(24)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate agent_secret failed", err)
-	}
-	now := time.Now().UTC()
-
-	updated := *row
-	updated.AgentID = agentID
-	updated.AgentSecret = agentSecret
-	updated.NodeKey = req.NodeKey
-	updated.Hostname = req.Hostname
-	updated.Platform = req.Platform
-	updated.PlatformVersion = req.PlatformVersion
-	updated.Arch = req.Arch
-	updated.AgentVersion = req.AgentVersion
-	updated.Status = model.NodeStatusOnline
-	updated.LastHeartbeatAt = now
-	updated.LastOnlineAt = now
-
-	if err := s.nodes.CompleteEnrollment(ctx, &updated); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errcode.New(errcode.EnrollmentTokenInvalid, "enrollment token is invalid or already used")
-		}
-		return nil, errcode.Wrap(errcode.Internal, "complete enrollment failed", err)
-	}
-
-	detailJSON := "{}"
-	if b, err := json.Marshal(map[string]string{"node_key": updated.NodeKey, "mode": "enrollment"}); err == nil {
-		detailJSON = string(b)
-	}
-	_ = s.audit.Record(ctx, audit.RecordInput{
-		ActorType:    "agent",
-		ActorID:      updated.AgentID,
-		ActorName:    updated.Name,
-		Action:       "node.register",
-		ResourceType: "node",
-		ResourceID:   strconv.FormatInt(updated.ID, 10),
-		Detail:       detailJSON,
-	})
-
-	return &RegisterResponse{
-		NodeID:      updated.ID,
-		AgentID:     updated.AgentID,
-		AgentSecret: updated.AgentSecret,
-		WSURL:       fmt.Sprintf("%s/api/v1/agents/ws", s.externalURL),
-	}, nil
-}
-
-// CreatePendingNode pre-creates a node in the console and returns a one-time enrollment token for the agent.
+// CreatePendingNode 在控制台创建节点并生成固定的 agent_id / agent_secret / node_key，Agent 凭此直接与控制面通信，无需再调用注册接口兑换凭证。
 func (s *Service) CreatePendingNode(ctx context.Context, req CreatePendingNodeRequest, actorUserID, actorUsername string) (*CreatePendingNodeResponse, *errcode.AppError) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, errcode.New(errcode.InvalidArgument, "name is required")
 	}
 
-	expiresIn := 7 * 24 * time.Hour
-	if req.ExpiresInHours > 0 {
-		expiresIn = time.Duration(req.ExpiresInHours) * time.Hour
-	}
-	expiresAt := time.Now().UTC().Add(expiresIn)
-
-	plainToken, err := randomHex(32)
+	agentID, err := randomHex(12)
 	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate enrollment token failed", err)
+		return nil, errcode.Wrap(errcode.Internal, "generate agent_id failed", err)
 	}
-	tokenHash := hashEnrollmentToken(plainToken)
-
-	pendID, err := randomHex(8)
+	agentSecret, err := randomHex(24)
 	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate pending id failed", err)
+		return nil, errcode.Wrap(errcode.Internal, "generate agent_secret failed", err)
 	}
-	keyRand, err := randomHex(8)
+	nodeKey, err := randomHex(16)
 	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate pending node_key failed", err)
-	}
-	secretPlaceholder, err := randomHex(24)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate placeholder secret failed", err)
+		return nil, errcode.Wrap(errcode.Internal, "generate node_key failed", err)
 	}
 
 	now := time.Now().UTC()
 	record := &model.Node{
-		AgentID:         "pend-" + pendID,
-		AgentSecret:     secretPlaceholder,
-		NodeKey:         "pend-key-" + keyRand,
+		AgentID:         agentID,
+		AgentSecret:     agentSecret,
+		NodeKey:         nodeKey,
 		Name:            name,
 		Hostname:        "",
 		Platform:        "",
@@ -231,8 +75,8 @@ func (s *Service) CreatePendingNode(ctx context.Context, req CreatePendingNodeRe
 		LastOnlineAt:    now,
 	}
 
-	if err := s.nodes.CreatePendingEnrollment(ctx, record, tokenHash, &expiresAt); err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "create pending node failed", err)
+	if err := s.nodes.Create(ctx, record); err != nil {
+		return nil, errcode.Wrap(errcode.Internal, "create node failed", err)
 	}
 
 	detailJSON := "{}"
@@ -250,16 +94,18 @@ func (s *Service) CreatePendingNode(ctx context.Context, req CreatePendingNodeRe
 	})
 
 	return &CreatePendingNodeResponse{
-		ID:                  record.ID,
-		Name:                name,
-		Status:              model.NodeStatusPending,
-		EnrollmentToken:     plainToken,
-		EnrollmentExpiresAt: expiresAt.Format(time.RFC3339),
+		ID:          record.ID,
+		Name:        name,
+		Status:      model.NodeStatusPending,
+		AgentID:     agentID,
+		AgentSecret: agentSecret,
+		NodeKey:     nodeKey,
+		WSURL:       fmt.Sprintf("%s/api/v1/agents/ws", s.externalURL),
 	}, nil
 }
 
-// RegenerateEnrollmentToken issues a new enrollment token for a pending node (replaces the stored hash).
-func (s *Service) RegenerateEnrollmentToken(ctx context.Context, nodeID int64, actorUserID, actorUsername string) (*CreatePendingNodeResponse, *errcode.AppError) {
+// GetNodeAgentCredentials 返回节点固定凭据（供控制台「安装」展示；需已登录且有权限）。
+func (s *Service) GetNodeAgentCredentials(ctx context.Context, nodeID int64) (*AgentCredentialsResponse, *errcode.AppError) {
 	item, err := s.nodes.GetByID(ctx, nodeID)
 	if err != nil {
 		return nil, errcode.Wrap(errcode.Internal, "get node failed", err)
@@ -267,50 +113,12 @@ func (s *Service) RegenerateEnrollmentToken(ctx context.Context, nodeID int64, a
 	if item == nil {
 		return nil, errcode.New(errcode.NotFound, "node not found")
 	}
-	if item.Status != model.NodeStatusPending {
-		return nil, errcode.New(errcode.InvalidArgument, "only pending nodes can show install commands")
-	}
-
-	expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
-	plainToken, err := randomHex(32)
-	if err != nil {
-		return nil, errcode.Wrap(errcode.Internal, "generate enrollment token failed", err)
-	}
-	tokenHash := hashEnrollmentToken(plainToken)
-
-	if err := s.nodes.SetPendingEnrollmentToken(ctx, nodeID, tokenHash, &expiresAt); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errcode.New(errcode.InvalidArgument, "only pending nodes can show install commands")
-		}
-		return nil, errcode.Wrap(errcode.Internal, "update enrollment token failed", err)
-	}
-
-	detailJSON := "{}"
-	if b, err := json.Marshal(map[string]string{"name": item.Name}); err == nil {
-		detailJSON = string(b)
-	}
-	_ = s.audit.Record(ctx, audit.RecordInput{
-		ActorType:    "user",
-		ActorID:      actorUserID,
-		ActorName:    actorUsername,
-		Action:       "node.regenerate_enrollment",
-		ResourceType: "node",
-		ResourceID:   strconv.FormatInt(nodeID, 10),
-		Detail:       detailJSON,
-	})
-
-	return &CreatePendingNodeResponse{
-		ID:                  nodeID,
-		Name:                item.Name,
-		Status:              model.NodeStatusPending,
-		EnrollmentToken:     plainToken,
-		EnrollmentExpiresAt: expiresAt.Format(time.RFC3339),
+	return &AgentCredentialsResponse{
+		AgentID:     item.AgentID,
+		AgentSecret: item.AgentSecret,
+		NodeKey:     item.NodeKey,
+		WSURL:       fmt.Sprintf("%s/api/v1/agents/ws", s.externalURL),
 	}, nil
-}
-
-func hashEnrollmentToken(plain string) string {
-	sum := sha256.Sum256([]byte(strings.TrimSpace(plain)))
-	return hex.EncodeToString(sum[:])
 }
 
 // List returns all nodes with latest runtime state.

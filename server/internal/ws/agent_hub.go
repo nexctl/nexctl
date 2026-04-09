@@ -20,6 +20,7 @@ type AgentHub struct {
 
 type agentEntry struct {
 	send chan Message
+	conn *websocket.Conn
 }
 
 func NewAgentHub() *AgentHub {
@@ -27,14 +28,18 @@ func NewAgentHub() *AgentHub {
 }
 
 // Register 注册节点 Agent；同一 nodeID 新连接会替换旧连接。
-func (h *AgentHub) Register(nodeID int64) (send chan Message, unregister func()) {
+// 会先关闭旧 WebSocket，再关闭旧下发 chan，避免旧读循环仍向已关闭的 chan 发送而 panic。
+func (h *AgentHub) Register(nodeID int64, conn *websocket.Conn) (send chan Message, unregister func()) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if old, ok := h.agents[nodeID]; ok && old != nil {
+		if old.conn != nil {
+			_ = old.conn.Close()
+		}
 		close(old.send)
 	}
 	ch := make(chan Message, agentSendQueue)
-	h.agents[nodeID] = &agentEntry{send: ch}
+	h.agents[nodeID] = &agentEntry{send: ch, conn: conn}
 	return ch, func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -46,18 +51,32 @@ func (h *AgentHub) Register(nodeID int64) (send chan Message, unregister func())
 }
 
 // Send 向节点上的 Agent 下发一条 JSON 消息（非阻塞；队列满则丢弃并返回错误）。
-func (h *AgentHub) Send(nodeID int64, msg Message) error {
+func (h *AgentHub) Send(nodeID int64, msg Message) (err error) {
 	h.mu.RLock()
 	e, ok := h.agents[nodeID]
 	h.mu.RUnlock()
 	if !ok || e == nil {
 		return ErrAgentOffline
 	}
+	defer func() {
+		if recover() != nil {
+			err = ErrAgentOffline
+		}
+	}()
 	select {
 	case e.send <- msg:
 		return nil
 	default:
 		return errors.New("agent send queue full")
+	}
+}
+
+// EnqueueAgentSend 非阻塞向下发队列写入；chan 已关闭时静默丢弃（不 panic）。
+func EnqueueAgentSend(send chan<- Message, msg Message) {
+	defer func() { recover() }()
+	select {
+	case send <- msg:
+	default:
 	}
 }
 

@@ -4,6 +4,7 @@ import {
   AlertOutlined,
   AppstoreOutlined,
   AuditOutlined,
+  ClockCircleOutlined,
   DeploymentUnitOutlined,
   FileOutlined,
   HomeOutlined,
@@ -41,6 +42,7 @@ export function ConsoleLayout({ children }: { children: ReactNode }) {
       { key: '/dashboard', icon: <HomeOutlined />, label: t('console.menu.dashboard') },
       { key: '/nodes', icon: <DeploymentUnitOutlined />, label: t('console.menu.nodes') },
       { key: '/tasks', icon: <AppstoreOutlined />, label: t('console.menu.tasks') },
+      { key: '/task-schedules', icon: <ClockCircleOutlined />, label: t('console.menu.taskSchedules') },
       { key: '/files', icon: <FileOutlined />, label: t('console.menu.files') },
       { key: '/upgrades', icon: <RocketOutlined />, label: t('console.menu.upgrades') },
       { key: '/alerts', icon: <AlertOutlined />, label: t('console.menu.alerts') },
@@ -50,7 +52,7 @@ export function ConsoleLayout({ children }: { children: ReactNode }) {
   );
 
   const selectedKey = useMemo(() => {
-    const matched = menuItems.find((item) => pathname.startsWith(item.key));
+    const matched = menuItems.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`));
     return matched?.key ?? '/dashboard';
   }, [pathname, menuItems]);
 

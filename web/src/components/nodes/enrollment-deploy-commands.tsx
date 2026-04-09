@@ -12,24 +12,27 @@ import {
 
 export type EnrollmentDeployCommandsProps = {
   nodeName: string;
-  token: string;
-  expiresAt?: string;
+  agentId: string;
+  agentSecret: string;
+  nodeKey: string;
+  /** 控制台节点 ID，写入 agent.yaml 的 node_id（可选） */
+  nodeId?: number;
 };
 
-export function EnrollmentDeployCommands({ nodeName, token, expiresAt }: EnrollmentDeployCommandsProps) {
+export function EnrollmentDeployCommands({ nodeName, agentId, agentSecret, nodeKey, nodeId }: EnrollmentDeployCommandsProps) {
   const t = useT();
   const { message } = App.useApp();
 
-  const serverUrl = useMemo(() => resolveAgentServerUrl(), [token]);
+  const serverUrl = useMemo(() => resolveAgentServerUrl(), []);
 
   const linuxCommand = useMemo(
-    () => buildLinuxInstallCommand(serverUrl, token),
-    [serverUrl, token],
+    () => buildLinuxInstallCommand(serverUrl, agentId, agentSecret, nodeKey, nodeId),
+    [serverUrl, agentId, agentSecret, nodeKey, nodeId],
   );
 
   const windowsCommand = useMemo(
-    () => buildWindowsInstallLines(serverUrl, token),
-    [serverUrl, token],
+    () => buildWindowsInstallLines(serverUrl, agentId, agentSecret, nodeKey, nodeId),
+    [serverUrl, agentId, agentSecret, nodeKey, nodeId],
   );
 
   const copyText = async (text: string, okKey: 'nodes.copied' | 'nodes.deployCopiedCmd') => {
@@ -44,7 +47,7 @@ export function EnrollmentDeployCommands({ nodeName, token, expiresAt }: Enrollm
   return (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-        {t('nodes.tokenHint', { name: nodeName })}
+        {t('nodes.credentialHint', { name: nodeName })}
       </Typography.Paragraph>
       <div>
         <Typography.Text type="secondary">{t('nodes.deployServerUrlLabel')}: </Typography.Text>
@@ -52,26 +55,37 @@ export function EnrollmentDeployCommands({ nodeName, token, expiresAt }: Enrollm
           {serverUrl}
         </Typography.Text>
       </div>
-      <Alert type="info" showIcon title={t('nodes.deployServerHint')} />
-
-      {expiresAt && (
-        <Typography.Text type="secondary">
-          {t('nodes.expiresAt')}
-          {expiresAt}
-        </Typography.Text>
-      )}
+      <Alert type="warning" showIcon title={t('nodes.credentialSecretWarning')} />
 
       <div>
-        <Typography.Text strong>{t('nodes.copyToken')}</Typography.Text>
+        <Typography.Text strong>{t('nodes.fieldAgentId')}</Typography.Text>
         <Input.TextArea
           readOnly
-          value={token}
-          autoSize={{ minRows: 3, maxRows: 6 }}
+          value={agentId}
+          autoSize={{ minRows: 1, maxRows: 3 }}
           style={{ fontFamily: 'monospace', marginTop: 8 }}
         />
-        <Button style={{ marginTop: 8 }} icon={<CopyOutlined />} onClick={() => copyText(token, 'nodes.copied')}>
-          {t('nodes.copyToken')}
+      </div>
+      <div>
+        <Typography.Text strong>{t('nodes.fieldAgentSecret')}</Typography.Text>
+        <Input.TextArea
+          readOnly
+          value={agentSecret}
+          autoSize={{ minRows: 2, maxRows: 6 }}
+          style={{ fontFamily: 'monospace', marginTop: 8 }}
+        />
+        <Button style={{ marginTop: 8 }} icon={<CopyOutlined />} onClick={() => copyText(agentSecret, 'nodes.copied')}>
+          {t('nodes.copyAgentSecret')}
         </Button>
+      </div>
+      <div>
+        <Typography.Text strong>{t('nodes.fieldNodeKey')}</Typography.Text>
+        <Input.TextArea
+          readOnly
+          value={nodeKey}
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          style={{ fontFamily: 'monospace', marginTop: 8 }}
+        />
       </div>
 
       <Divider>{t('nodes.deploySectionTitle')}</Divider>

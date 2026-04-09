@@ -37,7 +37,7 @@ const nextConfig = {
   ...(!isProd && allowedDevOrigins.length > 0 ? { allowedDevOrigins } : {}),
   ...(isProd ? { output: 'standalone' } : {}),
   env: {
-    // 客户端可读；安装命令里的 ServerUrl 在未设置 NEXT_PUBLIC_AGENT_SERVER_URL 时使用
+    // 客户端可读；SSR 时安装命令回退用；浏览器内优先 window.location.origin（见 resolveAgentServerUrl）
     NEXT_PUBLIC_INTERNAL_API_ORIGIN: internalApiOrigin(),
   },
   async rewrites() {

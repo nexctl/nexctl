@@ -5,8 +5,8 @@ set -eu
 # 仓库与产物：https://github.com/nexctl/agent （zip: nexctl_<goos>_<goarch>.zip）
 #
 # 安装（管道传参须加 -s --）：
-#   curl -fsSL https://你的域名/deploy/install/install.sh | sh -s -- "http://控制面:8080" "节点令牌"
-# 可选第 3 个参数：版本标签，如 v0.1.0（默认 latest）
+#   curl -fsSL https://你的域名/deploy/install/install.sh | sh -s -- "http://控制面:8080" "<agent_id>" "<agent_secret>" "<node_key>" [node_id] [版本标签]
+# 可选：node_id（控制台节点数字 ID，便于日志）；版本标签如 v0.1.0（默认 latest）
 # 卸载：
 #   curl -fsSL .../install.sh | sh -s -- uninstall
 #   或：sh install.sh uninstall
@@ -194,13 +194,16 @@ if [ "${1:-}" = "uninstall" ]; then
 fi
 
 SERVER_URL="${1:-}"
-ENROLLMENT_TOKEN="${2:-}"
-RELEASE_TAG="${3:-}"
+AGENT_ID="${2:-}"
+AGENT_SECRET="${3:-}"
+NODE_KEY="${4:-}"
+NODE_ID="${5:-}"
+RELEASE_TAG="${6:-}"
 
 GITHUB_REPO="${NEXCTL_AGENT_REPO:-nexctl/agent}"
 
-if [ -z "$SERVER_URL" ] || [ -z "$ENROLLMENT_TOKEN" ]; then
-  err "用法: curl -fsSL .../install.sh | sh -s -- <服务器地址> <节点token> [版本标签]"
+if [ -z "$SERVER_URL" ] || [ -z "$AGENT_ID" ] || [ -z "$AGENT_SECRET" ] || [ -z "$NODE_KEY" ]; then
+  err "用法: curl -fsSL .../install.sh | sh -s -- <服务器地址> <agent_id> <agent_secret> <node_key> [node_id] [版本标签]"
   err "卸载: curl -fsSL .../install.sh | sh -s -- uninstall"
   exit 1
 fi
@@ -298,19 +301,24 @@ yaml_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-tee "$CONFIG_FILE" >/dev/null <<EOF
-agent:
-  server_url: "$(yaml_escape "$SERVER_URL")"
-  enrollment_token: "$(yaml_escape "$ENROLLMENT_TOKEN")"
-  node_name: "$(yaml_escape "$NODE_NAME")"
-  data_dir: "${DATA_ROOT}/data"
-  config_dir: "${DATA_ROOT}/data/config"
-  credential_dir: "${DATA_ROOT}/data/credentials"
-  log_dir: "${DATA_ROOT}/data/logs"
-  github_repo: "$(yaml_escape "$GITHUB_REPO")"
-  disable_auto_update: false
-  self_update_period_minutes: 0
-EOF
+{
+  echo "agent:"
+  echo "  server_url: \"$(yaml_escape "$SERVER_URL")\""
+  echo "  agent_id: \"$(yaml_escape "$AGENT_ID")\""
+  echo "  agent_secret: \"$(yaml_escape "$AGENT_SECRET")\""
+  echo "  node_key: \"$(yaml_escape "$NODE_KEY")\""
+  if [ -n "$NODE_ID" ]; then
+    echo "  node_id: ${NODE_ID}"
+  fi
+  echo "  node_name: \"$(yaml_escape "$NODE_NAME")\""
+  echo "  data_dir: \"${DATA_ROOT}/data\""
+  echo "  config_dir: \"${DATA_ROOT}/data/config\""
+  echo "  credential_dir: \"${DATA_ROOT}/data/credentials\""
+  echo "  log_dir: \"${DATA_ROOT}/data/logs\""
+  echo "  github_repo: \"$(yaml_escape "$GITHUB_REPO")\""
+  echo "  disable_auto_update: false"
+  echo "  self_update_period_minutes: 0"
+} >"$CONFIG_FILE"
 chmod 0644 "$CONFIG_FILE"
 
 # 标记由本脚本安装（便于日后扩展）

@@ -12,9 +12,8 @@ NexCtl is a lightweight server fleet monitoring and remote management platform c
 
 - Base: `http://localhost:8080/api/v1`
 - Login: `POST /auth/login`
-- Agent register: `POST /agents/register`
-- Agent websocket: `GET /agents/ws`（鉴权头 `X-NexCtl-Agent-Id`、`X-NexCtl-Agent-Secret`）
-- Nodes: `GET /nodes`, `GET /nodes/{nodeID}`, `POST /nodes/{nodeID}/runtime-state`
+- Agent websocket: `GET /agents/ws`（鉴权头 `X-NexCtl-Agent-Id`、`X-NexCtl-Agent-Secret`；凭据由控制台创建节点时生成）
+- Nodes: `GET /nodes`, `GET /nodes/{nodeID}`, `GET /nodes/{nodeID}/agent-credentials`, `POST /nodes/{nodeID}/runtime-state`
 - Reserved list APIs: `GET /tasks`, `GET /files`, `GET /upgrades/releases`, `GET /alerts/rules`, `GET /alerts/events`, `GET /audit/logs`
 
 ### API envelope
@@ -65,7 +64,7 @@ Development seed data:
 
 - Console user: `admin`
 - Console password: `admin123`
-- Install token: `install-token-demo`
+- 在控制台「添加节点」获取固定的 `agent_id` / `agent_secret` / `node_key` 配置 Agent（见 `agent/configs/agent.example.yaml`）
 
 ## Local Development
 
