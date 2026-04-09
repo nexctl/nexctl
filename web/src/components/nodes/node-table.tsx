@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { NodeInstallModal } from '@/components/nodes/node-install-modal';
+import { NodeFileManagerModal } from '@/components/nodes/node-file-manager-modal';
 import { NodeTerminalModal } from '@/components/nodes/node-terminal-modal';
 import { deleteNode } from '@/services/node';
 import type { NodeItem } from '@/types/node';
@@ -38,6 +39,7 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [installNode, setInstallNode] = useState<NodeItem | null>(null);
   const [terminalNode, setTerminalNode] = useState<NodeItem | null>(null);
+  const [fileNode, setFileNode] = useState<NodeItem | null>(null);
 
   const columns: ColumnsType<NodeItem> = useMemo(
     () => [
@@ -132,11 +134,7 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
             >
               {t('nodes.terminal')}
             </Button>
-            <Button
-              size="small"
-              icon={<FileSyncOutlined />}
-              onClick={() => message.info(t('nodes.featureComingSoon'))}
-            >
+            <Button size="small" icon={<FileSyncOutlined />} onClick={() => setFileNode(row)}>
               {t('nodes.file')}
             </Button>
             <Button
@@ -191,6 +189,15 @@ export function NodeTable({ nodes, onAfterDelete }: NodeTableProps) {
           onClose={() => setTerminalNode(null)}
           nodeId={terminalNode.id}
           nodeName={terminalNode.name}
+        />
+      ) : null}
+      {fileNode !== null ? (
+        <NodeFileManagerModal
+          open
+          onClose={() => setFileNode(null)}
+          nodeId={fileNode.id}
+          nodeName={fileNode.name}
+          platform={fileNode.platform}
         />
       ) : null}
     </>

@@ -62,6 +62,7 @@ func New(cfg config.Config, logger *zap.Logger, authService *auth.Service, nodeS
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/", nodeHandler.CreatePending)
 				nr.With(authMiddleware.RequirePermission("nodes:read")).Get("/{nodeID}/agent-credentials", nodeHandler.AgentCredentials)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/upgrade-agent", nodeHandler.TriggerAgentUpgrade)
+				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/file-op", nodeHandler.FileOp)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Post("/{nodeID}/runtime-state", nodeHandler.UpdateRuntimeState)
 				nr.With(authMiddleware.RequirePermission("nodes:write")).Delete("/{nodeID}", nodeHandler.Delete)
 			})

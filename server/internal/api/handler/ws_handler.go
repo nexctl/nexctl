@@ -106,6 +106,8 @@ func (h *WSHandler) AgentConnect(w http.ResponseWriter, r *http.Request) {
 			h.handleAgentTerminalExit(message)
 		case ws.MessageTypeTaskReport:
 			h.handleAgentTaskReport(r, send, nodeRecord, message)
+		case ws.MessageTypeFileReport:
+			h.handleAgentFileReport(message)
 		default:
 			ws.EnqueueAgentSend(send, ws.Message{
 				Type:      ws.MessageTypeError,
@@ -126,6 +128,17 @@ func (h *WSHandler) handleAgentTerminalOutput(message ws.Message) {
 		return
 	}
 	_ = h.ws.TerminalBridge.DispatchFromAgent(payload.SessionID, message)
+}
+
+func (h *WSHandler) handleAgentFileReport(message ws.Message) {
+	if strings.TrimSpace(message.RequestID) == "" {
+		return
+	}
+	var payload ws.FileReportPayload
+	if err := json.Unmarshal(message.Payload, &payload); err != nil {
+		return
+	}
+	h.ws.CompleteFileOp(message.RequestID, payload)
 }
 
 func (h *WSHandler) handleAgentTaskReport(r *http.Request, send chan<- ws.Message, nodeRecord *model.Node, message ws.Message) {

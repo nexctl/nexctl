@@ -53,3 +53,37 @@ export type TriggerAgentUpgradeResult = {
 export function triggerAgentUpgrade(id: number | string) {
   return apiRequest<TriggerAgentUpgradeResult>(`/nodes/${id}/upgrade-agent`, { method: 'POST' });
 }
+
+/** 远程文件操作（经 Agent WebSocket，需节点在线） */
+export type NodeFileOpRequest = {
+  op: string;
+  path?: string;
+  path_to?: string;
+  content_b64?: string;
+  max_bytes?: number;
+  recursive?: boolean;
+};
+
+export type NodeFileEntry = {
+  name: string;
+  is_dir: boolean;
+  size: number;
+  mod_time: string;
+};
+
+export type NodeFileOpResult = {
+  ok: boolean;
+  error?: string;
+  entries?: NodeFileEntry[];
+  content_b64?: string;
+  size?: number;
+  mod_time?: string;
+  is_dir?: boolean;
+};
+
+export async function nodeFileOp(id: number | string, body: NodeFileOpRequest) {
+  return apiRequest<NodeFileOpResult>(`/nodes/${id}/file-op`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}

@@ -8,7 +8,7 @@ import { NodeToolbar } from '@/components/nodes/node-toolbar';
 import { useT } from '@/i18n';
 import { deleteNode } from '@/services/node';
 
-export function NodeDetailPageHeader({ id, name }: { id: number; name: string }) {
+export function NodeDetailPageHeader({ id, name, platform }: { id: number; name: string; platform?: string }) {
   const router = useRouter();
   const { message } = App.useApp();
   const t = useT();
@@ -49,7 +49,7 @@ export function NodeDetailPageHeader({ id, name }: { id: number; name: string })
             </Button>
           </Popconfirm>
         </Space>
-        <NodeToolbar nodeId={id} nodeName={name} />
+        <NodeToolbar nodeId={id} nodeName={name} platform={platform} />
       </Space>
     </Card>
   );

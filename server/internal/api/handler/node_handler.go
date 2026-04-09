@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -186,6 +189,55 @@ func (h *NodeHandler) TriggerAgentUpgrade(w http.ResponseWriter, r *http.Request
 		return
 	}
 	response.WriteOK(w, map[string]any{"queued": true, "request_id": msg.RequestID})
+}
+
+// FileOp 向节点 Agent 执行远程文件操作（list/stat/read/write/mkdir/remove/rename，需 Agent 在线）。
+func (h *NodeHandler) FileOp(w http.ResponseWriter, r *http.Request) {
+	nodeID, err := strconv.ParseInt(chi.URLParam(r, "nodeID"), 10, 64)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, errcode.InvalidArgument, "invalid node id")
+		return
+	}
+	var body struct {
+		Op         string `json:"op"`
+		Path       string `json:"path"`
+		PathTo     string `json:"path_to,omitempty"`
+		ContentB64 string `json:"content_b64,omitempty"`
+		MaxBytes   int    `json:"max_bytes,omitempty"`
+		Recursive  bool   `json:"recursive,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.WriteError(w, http.StatusBadRequest, errcode.InvalidArgument, "invalid request body")
+		return
+	}
+	body.Op = strings.TrimSpace(strings.ToLower(body.Op))
+	if body.Op == "" {
+		response.WriteError(w, http.StatusBadRequest, errcode.InvalidArgument, "op is required")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	res, err := h.wsSvc.ExecuteFileOp(ctx, nodeID, ws.FileDispatchPayload{
+		Op: body.Op, Path: body.Path, PathTo: body.PathTo, ContentB64: body.ContentB64,
+		MaxBytes: body.MaxBytes, Recursive: body.Recursive,
+	})
+	if err != nil {
+		if errors.Is(err, ws.ErrAgentOffline) {
+			response.WriteError(w, http.StatusServiceUnavailable, errcode.Internal, "agent offline")
+			return
+		}
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+			response.WriteError(w, http.StatusGatewayTimeout, errcode.Internal, err.Error())
+			return
+		}
+		if err.Error() == "file operation timeout" {
+			response.WriteError(w, http.StatusGatewayTimeout, errcode.Internal, err.Error())
+			return
+		}
+		response.WriteError(w, http.StatusInternalServerError, errcode.Internal, err.Error())
+		return
+	}
+	response.WriteOK(w, res)
 }
 
 // CurrentUser returns the authenticated operator context.

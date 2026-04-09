@@ -27,8 +27,8 @@ const (
 	// MessageTypeTaskDispatch is reserved for future task dispatch.
 	MessageTypeTaskDispatch = "task_dispatch"
 	MessageTypeTaskReport   = "task_report"
-	// MessageTypeFileDispatch is reserved for future file operations.
 	MessageTypeFileDispatch = "file_dispatch"
+	MessageTypeFileReport   = "file_report"
 	MessageTypeUpgradeCommand = "upgrade_command"
 
 	// 终端（浏览器 <-> 控制面 <-> Agent PTY）
@@ -159,6 +159,7 @@ type Service struct {
 
 	AgentHub       *AgentHub
 	TerminalBridge *TerminalBridge
+	fileOps        *FileOpRegistry
 }
 
 // NewService creates a websocket service.
@@ -172,6 +173,7 @@ func NewService(cfg config.NodeConfig, nodes repository.NodeRepository, runtime 
 		logger:         logger,
 		AgentHub:       NewAgentHub(),
 		TerminalBridge: NewTerminalBridge(),
+		fileOps:        NewFileOpRegistry(),
 	}
 }
 

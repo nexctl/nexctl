@@ -29,7 +29,7 @@ export function NodeDetailView({ id }: { id: string }) {
 
   return (
     <PageShell>
-      <NodeDetailPageHeader id={detail.id} name={detail.name} />
+      <NodeDetailPageHeader id={detail.id} name={detail.name} platform={detail.platform} />
       <NodeSummaryCards detail={detail} />
     </PageShell>
   );
