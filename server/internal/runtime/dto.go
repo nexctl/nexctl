@@ -1,6 +1,9 @@
 package runtime
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // UpdateStateRequest is the current runtime state update request body.
 type UpdateStateRequest struct {
@@ -15,6 +18,18 @@ type UpdateStateRequest struct {
 	UptimeSeconds uint64  `json:"uptime_seconds"`
 	ProcessCount  uint32  `json:"process_count"`
 	Timestamp     string  `json:"timestamp,omitempty"`
+	// Agent 上报的机器信息与版本（与 WebSocket runtime_state 一致）
+	Hostname        string `json:"hostname,omitempty"`
+	Platform        string `json:"platform,omitempty"`
+	PlatformVersion string `json:"platform_version,omitempty"`
+	Arch            string `json:"arch,omitempty"`
+	AgentVersion    string `json:"agent_version,omitempty"`
+}
+
+// HasAgentMeta 为 true 时写入 nodes 表的 hostname/platform/arch/agent_version 等展示字段。
+func (r UpdateStateRequest) HasAgentMeta() bool {
+	return strings.TrimSpace(r.Platform) != "" || strings.TrimSpace(r.Arch) != "" || strings.TrimSpace(r.AgentVersion) != "" ||
+		strings.TrimSpace(r.Hostname) != "" || strings.TrimSpace(r.PlatformVersion) != ""
 }
 
 // ReportedAt parses the optional payload timestamp or falls back to now.

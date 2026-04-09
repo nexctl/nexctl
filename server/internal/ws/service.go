@@ -129,6 +129,11 @@ type RuntimeStatePayload struct {
 	UptimeSeconds uint64  `json:"uptime_seconds"`
 	ProcessCount  uint32  `json:"process_count"`
 	Timestamp     string  `json:"timestamp,omitempty"`
+	Hostname        string `json:"hostname,omitempty"`
+	Platform        string `json:"platform,omitempty"`
+	PlatformVersion string `json:"platform_version,omitempty"`
+	Arch            string `json:"arch,omitempty"`
+	AgentVersion    string `json:"agent_version,omitempty"`
 }
 
 // AckPayload is the generic websocket acknowledgement payload.
@@ -199,6 +204,11 @@ func (s *Service) HandleRuntimeState(ctx context.Context, node *model.Node, payl
 		UptimeSeconds: payload.UptimeSeconds,
 		ProcessCount:  payload.ProcessCount,
 		Timestamp:     payload.Timestamp,
+		Hostname:        payload.Hostname,
+		Platform:        payload.Platform,
+		PlatformVersion: payload.PlatformVersion,
+		Arch:            payload.Arch,
+		AgentVersion:    payload.AgentVersion,
 	})
 	if appErr != nil {
 		return appErr

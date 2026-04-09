@@ -14,8 +14,10 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
-      - mysql-data2:/var/lib/mysql
+      - mysql-data3:/var/lib/mysql
       - ./server/migrations/0001_init.sql:/docker-entrypoint-initdb.d/0001_init.sql:ro
+      - ./server/migrations/0002_control_tasks.sql:/docker-entrypoint-initdb.d/0002_control_tasks.sql:ro
+      - ./server/migrations/0003_task_schedules.sql:/docker-entrypoint-initdb.d/0003_task_schedules.sql:ro
       - ./deploy/mysql/001-seed.sql:/docker-entrypoint-initdb.d/001-seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
@@ -86,5 +88,5 @@ services:
   #     - "127.0.0.1:3000:3000"
 
 volumes:
-  mysql-data2:
+  mysql-data3:
   redis-data:

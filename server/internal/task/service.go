@@ -134,7 +134,7 @@ func (s *Service) CreateSchedule(ctx context.Context, req CreateScheduleRequest,
 		s.logger.Warn("create task_schedules row failed", zap.Error(err))
 		var me *mysql.MySQLError
 		if errors.As(err, &me) && me.Number == 1146 {
-			return nil, errcode.New(errcode.InvalidArgument, "数据库中不存在 task_schedules 表。请在 MySQL 中执行：server/migrations/0003_task_schedules.sql")
+			return nil, errcode.New(errcode.InvalidArgument, "数据库中不存在 task_schedules 表。请在 MySQL 中执行 server/migrations/0003_task_schedules.sql；若 control_tasks 也不存在，请先执行 0002_control_tasks.sql（Docker 新库需挂载全部迁移或手动导入）")
 		}
 		return nil, errcode.Wrap(errcode.Internal, fmt.Sprintf("create schedule failed: %v", err), err)
 	}

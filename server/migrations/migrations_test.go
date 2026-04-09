@@ -39,3 +39,21 @@ func TestInitSQLDefinesExpectedTables(t *testing.T) {
 		}
 	}
 }
+
+func TestTaskSchedulesMigrationExists(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	dir := filepath.Dir(file)
+	raw, err := os.ReadFile(filepath.Join(dir, "0003_task_schedules.sql"))
+	if err != nil {
+		t.Fatalf("read 0003_task_schedules.sql: %v", err)
+	}
+	s := strings.ToLower(string(raw))
+	for _, name := range []string{"create table", "task_schedules", "cron_expr", "next_run_at"} {
+		if !strings.Contains(s, name) {
+			t.Errorf("0003_task_schedules.sql should mention %q", name)
+		}
+	}
+}

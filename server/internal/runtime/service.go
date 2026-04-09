@@ -43,6 +43,11 @@ func (s *Service) Update(ctx context.Context, nodeID int64, req UpdateStateReque
 	if err := s.nodes.UpdateHeartbeat(ctx, nodeID, now, model.NodeStatusOnline); err != nil {
 		return errcode.Wrap(errcode.Internal, "update node heartbeat failed", err)
 	}
+	if req.HasAgentMeta() {
+		if err := s.nodes.UpdateAgentMeta(ctx, nodeID, req.Hostname, req.Platform, req.PlatformVersion, req.Arch, req.AgentVersion); err != nil {
+			return errcode.Wrap(errcode.Internal, "update node agent meta failed", err)
+		}
+	}
 	return nil
 }
 

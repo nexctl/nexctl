@@ -21,6 +21,8 @@ type NodeRepository interface {
 	GetByAgentCredential(ctx context.Context, agentID, agentSecret string) (*model.Node, error)
 	List(ctx context.Context) ([]*model.Node, error)
 	UpdateHeartbeat(ctx context.Context, nodeID int64, seenAt time.Time, status string) error
+	// UpdateAgentMeta 由 Agent runtime_state 上报，刷新控制台展示的 OS/架构/版本与 hostname。
+	UpdateAgentMeta(ctx context.Context, nodeID int64, hostname, platform, platformVersion, arch, agentVersion string) error
 	// SetPendingEnrollmentToken replaces enrollment hash/expiry for a row that is still pending (awaiting agent).
 	SetPendingEnrollmentToken(ctx context.Context, nodeID int64, enrollmentTokenHash string, enrollmentExpiresAt *time.Time) error
 	CompleteEnrollment(ctx context.Context, node *model.Node) error
@@ -105,6 +107,15 @@ func (r *MySQLNodeRepository) List(ctx context.Context) ([]*model.Node, error) {
 func (r *MySQLNodeRepository) UpdateHeartbeat(ctx context.Context, nodeID int64, seenAt time.Time, status string) error {
 	if _, err := r.db.ExecContext(ctx, `UPDATE nodes SET status = ?, last_heartbeat_at = ?, last_online_at = ?, updated_at = NOW() WHERE id = ?`, status, seenAt, seenAt, nodeID); err != nil {
 		return fmt.Errorf("update node heartbeat: %w", err)
+	}
+	return nil
+}
+
+// UpdateAgentMeta updates host identity fields reported by the agent.
+func (r *MySQLNodeRepository) UpdateAgentMeta(ctx context.Context, nodeID int64, hostname, platform, platformVersion, arch, agentVersion string) error {
+	if _, err := r.db.ExecContext(ctx, `UPDATE nodes SET hostname = ?, platform = ?, platform_version = ?, arch = ?, agent_version = ?, updated_at = NOW() WHERE id = ?`,
+		hostname, platform, platformVersion, arch, agentVersion, nodeID); err != nil {
+		return fmt.Errorf("update node agent meta: %w", err)
 	}
 	return nil
 }
