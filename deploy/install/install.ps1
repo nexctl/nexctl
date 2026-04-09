@@ -10,7 +10,9 @@
 .EXAMPLE
   .\install.ps1 -Uninstall
 
-  环境变量：NEXCTL_AGENT_REPO、CN=1、NEXCTL_NO_MIRROR=1、NEXCTL_GH_PROXY、NEXCTL_NO_SERVICE=1（管理员也不注册 Windows 服务）
+  环境变量：NEXCTL_AGENT_REPO、CN=1、NEXCTL_NO_MIRROR=1、NEXCTL_GH_PROXY、NEXCTL_NO_SERVICE=1（管理员也不注册 Windows 服务）、NEXCTL_NO_ELEVATE=1（不弹出 UAC，仅当前用户目录安装，无服务）
+
+  默认行为：非管理员时会弹出 UAC，同意后以管理员安装到 C:\nexctl 并注册 Windows 服务；可用 -SkipElevation 跳过提权。
 
   远程一键：请把脚本保存到 %TEMP% 或用户目录（例如 -OutFile "$env:TEMP\nexctl-install.ps1"），
   勿在 C:\ 根目录写入 install.ps1，否则可能「对路径的访问被拒绝」。
@@ -28,7 +30,11 @@ param(
   [string] $ReleaseTag = '',
 
   [Parameter(ParameterSetName = 'Uninstall', Mandatory = $true)]
-  [switch] $Uninstall
+  [switch] $Uninstall,
+
+  # 不请求 UAC 提权：保持当前用户权限安装（用户目录 + 进程运行，不注册 Windows 服务）
+  [Parameter(ParameterSetName = 'Install')]
+  [switch] $SkipElevation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -147,6 +153,55 @@ if ($Uninstall) {
   }
   Write-Info '卸载完成。'
   exit 0
+}
+
+# ---------- 默认提权：以管理员安装到 C:\nexctl 并注册 Windows 服务 ----------
+if (-not (Test-Administrator)) {
+  if ($SkipElevation -or $env:NEXCTL_NO_ELEVATE -eq '1') {
+    Write-WarnLine '当前非管理员：将安装到用户目录并以进程运行（未注册 Windows 服务）。'
+  } else {
+    $scriptPath = $MyInvocation.MyCommand.Path
+    if ([string]::IsNullOrWhiteSpace($scriptPath)) {
+      Write-Error '无法确定脚本路径，无法自动提权。请将脚本保存为 .ps1 后执行，或以管理员身份打开 PowerShell 再运行。'
+      exit 1
+    }
+    Write-Info '请求管理员权限：安装到 C:\nexctl 并注册 Windows 服务（请在 UAC 中确认）...'
+    $shellExe = $null
+    try {
+      $shellExe = (Get-Process -Id $PID -ErrorAction Stop).Path
+    } catch {
+      $shellExe = $null
+    }
+    if ([string]::IsNullOrWhiteSpace($shellExe) -or -not (Test-Path -LiteralPath $shellExe)) {
+      if ($PSVersionTable.PSEdition -eq 'Core') {
+        $cmd = Get-Command -Name 'pwsh.exe' -ErrorAction SilentlyContinue
+        $shellExe = if ($cmd) { $cmd.Source } else { 'pwsh.exe' }
+      } else {
+        $shellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+      }
+    }
+    $argList = @(
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptPath,
+      '-ServerUrl', $ServerUrl,
+      '-EnrollmentToken', $EnrollmentToken
+    )
+    if (-not [string]::IsNullOrWhiteSpace($ReleaseTag)) {
+      $argList += @('-ReleaseTag', $ReleaseTag)
+    }
+    try {
+      $elevated = Start-Process -FilePath $shellExe -Verb RunAs -ArgumentList $argList -PassThru -Wait
+      $code = $elevated.ExitCode
+      if ($null -eq $code) { $code = 0 }
+      exit $code
+    } catch {
+      Write-Error @"
+提升权限失败或 UAC 已取消。需要管理员权限才能将 Agent 注册为 Windows 服务。
+请以管理员身份运行 PowerShell 后重新执行，或使用 -SkipElevation / 设置 NEXCTL_NO_ELEVATE=1 进行仅当前用户安装（无服务）。
+$_
+"@
+      exit 1
+    }
+  }
 }
 
 $GithubRepo = if ($env:NEXCTL_AGENT_REPO) { $env:NEXCTL_AGENT_REPO } else { 'nexctl/agent' }
